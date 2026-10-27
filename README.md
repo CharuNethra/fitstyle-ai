@@ -143,3 +143,8 @@ public/            Favicon, sample model, product photos (images/products/)
 ## Privacy notes
 
 Photos are processed in memory only to generate the try-on and are never stored. Interaction history lives in your browser's `localStorage`; recommendation consent is asked per session and choosing **NO** clears the history.
+
+## Deploying to Vercel
+
+The repo includes a Vercel setup: [`vercel.json`](vercel.json) serves the Vite build and sends every `/api/*` request to [`api/index.js`](api/index.js), which runs the same Express app as a serverless function (60 s limit). In the Vercel project, open **Settings -> Environment Variables**, add `GEMINI_API_KEY` (plus any other keys from `.env.example`), then redeploy. `.env` is not deployed, so without these variables try-on falls back to Hugging Face or the mock. On Vercel each try-on model attempt is capped at 25 s (`TRYON_TIMEOUT_MS`) so the fallback can still respond within the function limit, and photos are downscaled in the browser to stay under Vercel's 4.5 MB request limit.
+

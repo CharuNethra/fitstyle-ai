@@ -19,5 +19,7 @@ export function getConfig(env = process.env) {
     geminiKey: env.GEMINI_API_KEY,
     geminiModel: env.GEMINI_MODEL || 'gemini-3-flash-preview',
     geminiImageModel: env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image',
+    // Vercel functions stop at 60 s, so leave time for a model fallback and the mock.
+    tryOnTimeoutMs: Number(env.TRYON_TIMEOUT_MS) || (env.VERCEL ? 25_000 : 120_000),
   };
 }

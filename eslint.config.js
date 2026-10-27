@@ -21,7 +21,7 @@ export default [
     },
   },
   {
-    files: ['server/**/*.js', 'shared/**/*.js', 'e2e/**/*.js', '*.config.js'],
+    files: ['server/**/*.js', 'api/**/*.js', 'shared/**/*.js', 'e2e/**/*.js', '*.config.js'],
     languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: { ...globals.node } },
     rules: { ...js.configs.recommended.rules },
   },
