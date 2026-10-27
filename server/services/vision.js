@@ -1,10 +1,22 @@
 import { dataUrlToBuffer } from './imageUtils.js';
 
-function extractJson(text) {
-  const cleaned = String(text).replace(/```json|```/g, '').trim();
+/** Parses the first complete JSON object in the text (models sometimes append extra text or a second object). */
+export function extractJson(text) {
+  const cleaned = String(text).replace(/```json|```/g, '');
   const start = cleaned.indexOf('{');
-  const end = cleaned.lastIndexOf('}');
-  return JSON.parse(cleaned.slice(start, end + 1));
+  if (start < 0) throw new Error('No JSON object in model response');
+  let depth = 0;
+  let inString = false;
+  for (let i = start; i < cleaned.length; i += 1) {
+    const ch = cleaned[i];
+    if (inString) {
+      if (ch === '\\') i += 1;
+      else if (ch === '"') inString = false;
+    } else if (ch === '"') inString = true;
+    else if (ch === '{') depth += 1;
+    else if (ch === '}' && --depth === 0) return JSON.parse(cleaned.slice(start, i + 1));
+  }
+  throw new Error('Incomplete JSON object in model response');
 }
 
 async function toInlineImage(image) {
@@ -62,7 +74,11 @@ async function geminiRequest(model, parts, config) {
   const json = await res.json();
   const text = (json.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('');
   if (!text) throw Object.assign(new Error(`Gemini ${model} returned no content`), { retryable: true });
-  return extractJson(text);
+  try {
+    return extractJson(text);
+  } catch (err) {
+    throw Object.assign(new Error(`Gemini ${model} returned invalid JSON: ${err.message}`), { retryable: true });
+  }
 }
 
 /** Tries the configured Gemini model, then fallbacks on overload, rate limits, timeouts or retired models. */

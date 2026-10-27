@@ -75,7 +75,7 @@ GEMINI_MODEL=gemini-3-flash-preview          # falls back to other Gemini models
 With the default `TRYON_PROVIDER=huggingface`, [`server/services/hfTryOn.js`](server/services/hfTryOn.js) pads your photo to 3:4, sends it with the product photo to the public [IDM-VTON](https://huggingface.co/spaces/yisol/IDM-VTON) Space (mirror: `Nymbo/Virtual-Try-On`), and crops the result back to your photo's frame; dresses try [OOTDiffusion](https://huggingface.co/spaces/levihsu/OOTDiffusion)'s dress model first. A run takes ~20–60 s. Limits to know:
 
 - These Spaces run on ZeroGPU, which has a small **daily GPU quota per visitor/IP** when anonymous. Set a free `HF_TOKEN` to get a larger quota. When the quota is used up the app falls back to the mock preview and says so.
-- IDM-VTON only replaces **upper-body** garments; a dress sent to it comes back as a top. OOTDiffusion handles dresses.
+- IDM-VTON only replaces **upper-body** garments; a dress sent to it comes back as a top. OOTDiffusion handles dresses, but it copies whatever is in the garment photo (e.g. a model's scarf or bag), so flat-lay or plain product shots give the cleanest results.
 - Public Spaces can be paused or busy; the next Space in the list is tried, then the mock.
 
 Where the keys are used: [`server/config.js`](server/config.js) (provider selection), [`server/services/tryOn.js`](server/services/tryOn.js) (Hugging Face / Fal.ai / FASHN), [`server/services/vision.js`](server/services/vision.js) (OpenAI / Gemini). Keys are only read on the server and never sent to the browser. `.env` is git-ignored.
