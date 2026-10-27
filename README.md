@@ -16,7 +16,7 @@ Runs fully out-of-the-box: with no API keys the backend uses a built-in mock AI 
 
 ## Features
 
-- **Catalogue** – 26 products (real product photos in `public/images/products/`, the rest rendered as vector illustrations), category filter (Dresses, Tops, Outerwear, Casual, Formal), search and sort.
+- **Catalogue** – 26 products (real product photos and a flat-lay image in `public/images/products/`, the rest rendered as vector illustrations), category filter (Dresses, Tops, Outerwear, Casual, Formal), search and sort.
 - **Product page** – size picker with **Try On Now**, **Add to Cart** and **Add to Wishlist**.
 - **Try-On Studio** (`/try-on`) – choose an outfit, drag-and-drop / browse a photo (or use the sample model), click **Try On**:
   1. `/api/try-on` composites the garment onto your photo,
@@ -72,7 +72,7 @@ GEMINI_MODEL=gemini-3-flash-preview          # falls back to other Gemini models
 
 ### Free try-on on Hugging Face
 
-With the default `TRYON_PROVIDER=huggingface`, [`server/services/hfTryOn.js`](server/services/hfTryOn.js) pads your photo to 3:4, sends it with the product photo to the public [IDM-VTON](https://huggingface.co/spaces/yisol/IDM-VTON) Space (mirror: `Nymbo/Virtual-Try-On`), and crops the result back to your photo's frame; dresses try [OOTDiffusion](https://huggingface.co/spaces/levihsu/OOTDiffusion)'s dress model first. A run takes ~20–60 s. Limits to know:
+With the default `TRYON_PROVIDER=huggingface`, [`server/services/hfTryOn.js`](server/services/hfTryOn.js) preprocesses both images (see below), sends them to the public [IDM-VTON](https://huggingface.co/spaces/yisol/IDM-VTON) Space (mirror: `Nymbo/Virtual-Try-On`), and crops the result back to your photo's frame; dresses try [OOTDiffusion](https://huggingface.co/spaces/levihsu/OOTDiffusion)'s dress model first. A run takes ~20–60 s. Limits to know:
 
 - These Spaces run on ZeroGPU, which has a small **daily GPU quota per visitor/IP** when anonymous. Set a free `HF_TOKEN` to get a larger quota. When the quota is used up the app falls back to the mock preview and says so.
 - IDM-VTON only replaces **upper-body** garments; a dress sent to it comes back as a top. OOTDiffusion handles dresses, but it copies whatever is in the garment photo (e.g. a model's scarf or bag), so flat-lay or plain product shots give the cleanest results.
@@ -80,9 +80,20 @@ With the default `TRYON_PROVIDER=huggingface`, [`server/services/hfTryOn.js`](se
 
 Where the keys are used: [`server/config.js`](server/config.js) (provider selection), [`server/services/tryOn.js`](server/services/tryOn.js) (Hugging Face / Fal.ai / FASHN), [`server/services/vision.js`](server/services/vision.js) (OpenAI / Gemini). Keys are only read on the server and never sent to the browser. `.env` is git-ignored.
 
+### Image preprocessing
+
+Before anything is sent to a Hugging Face Space, [`server/services/preprocess.js`](server/services/preprocess.js) normalises both inputs to the models' native 768x1024 (3:4) resolution:
+
+- **Garment** (`prepareGarment`) – transparency is flattened onto white, the empty background around the garment is trimmed, and the garment is centred on a clean white 768x1024 canvas with a small margin.
+- **Person** (`preparePerson`) – the photo is auto-rotated, padded to 3:4 by repeating its edges (never stretched) and resized to 768x1024; `restorePersonFrame` crops the generated result back to the original photo's frame.
+
+### Clean garment images
+
+For the cleanest try-on, give a product a flat-lay image on a white background. A product can keep a worn/model photo in the shop and point the try-on at a separate clean image with `tryOnImage`, so accessories in the model photo are not copied onto the user. The Aurelia Satin Slip Dress ships with an AI-generated (FLUX.1-schnell) flat-lay image in `public/images/products/flat-lay/`.
+
 ### Adding product photos
 
-Drop an image into `public/images/products/` and set `image: '/images/products/<file>.jpg'` on the product in [`shared/products.js`](shared/products.js) (optional: `imageFit: 'contain' | 'cover'`, `imageBg`, `tryOnCategory: 'auto' | 'tops' | 'bottoms' | 'one-pieces'`). The photo is used in the catalogue and is sent to the try-on model as the garment reference.
+Drop an image into `public/images/products/` and set `image: '/images/products/<file>.jpg'` on the product in [`shared/products.js`](shared/products.js) (optional: `imageFit: 'contain' | 'cover'`, `imageBg`, `tryOnImage` for a separate clean garment image, `tryOnCategory: 'auto' | 'tops' | 'bottoms' | 'one-pieces'`). The photo is used in the catalogue and, unless `tryOnImage` is set, is sent to the try-on model as the garment reference.
 
 ## API
 

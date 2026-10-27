@@ -1,10 +1,8 @@
 import { Client, handle_file } from '@gradio/client';
-import sharp from 'sharp';
 import { bufferToDataUrl } from './imageUtils.js';
+import { prepareGarment, preparePerson, restorePersonFrame } from './preprocess.js';
 
 // Free, open-source try-on models hosted as public Hugging Face Spaces (ZeroGPU).
-const MODEL_W = 768;
-const MODEL_H = 1024;
 const clients = new Map();
 
 function connect(space, config) {
@@ -33,32 +31,6 @@ function withTimeout(promise, ms, space) {
     timer = setTimeout(() => reject(new Error(`${space} timed out after ${ms / 1000}s`)), ms);
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
-
-/** Pads the photo to the 3:4 portrait the models expect so the person is not stretched. */
-async function toPortrait(photo) {
-  const { data, info } = await sharp(photo).rotate().toBuffer({ resolveWithObject: true });
-  const { width: w, height: h } = info;
-  const ratio = MODEL_W / MODEL_H;
-  const padW = w / h > ratio ? w : Math.round(h * ratio);
-  const padH = w / h > ratio ? Math.round(w / ratio) : h;
-  const left = Math.floor((padW - w) / 2);
-  const top = Math.floor((padH - h) / 2);
-  const padded = await sharp(data)
-    .extend({ left, right: padW - w - left, top, bottom: padH - h - top, extendWith: 'copy' })
-    .resize(MODEL_W, MODEL_H, { fit: 'fill' })
-    .jpeg({ quality: 95 })
-    .toBuffer();
-  return { padded, crop: { left, top, width: w, height: h }, padW, padH };
-}
-
-async function restoreFrame(resultBuf, portrait) {
-  const out = await sharp(resultBuf)
-    .resize(portrait.padW, portrait.padH, { fit: 'fill' })
-    .extract(portrait.crop)
-    .jpeg({ quality: 92 })
-    .toBuffer();
-  return bufferToDataUrl(out);
 }
 
 function ootdCategory(category) {
@@ -103,12 +75,13 @@ export function spacesFor(category, config) {
 }
 
 export async function huggingFaceTryOn(photo, garment, product, category, config) {
-  const portrait = await toPortrait(photo);
+  const person = await preparePerson(photo);
+  const cleanGarment = await prepareGarment(garment);
   const errors = [];
   for (const space of spacesFor(category, config)) {
     try {
       const url = await withTimeout(
-        runSpace(space, portrait.padded, garment, product, category, config),
+        runSpace(space, person.image, cleanGarment, product, category, config),
         config.tryOnTimeoutMs ?? 180_000,
         space,
       );
@@ -116,8 +89,8 @@ export async function huggingFaceTryOn(photo, garment, product, category, config
       const headers = config.hfToken ? { Authorization: `Bearer ${config.hfToken}` } : {};
       const img = await fetch(url, { headers, signal: AbortSignal.timeout(30_000) });
       if (!img.ok) throw new Error(`could not download result (${img.status})`);
-      const image = await restoreFrame(Buffer.from(await img.arrayBuffer()), portrait);
-      return { image, model: space };
+      const restored = await restorePersonFrame(Buffer.from(await img.arrayBuffer()), person.frame);
+      return { image: bufferToDataUrl(restored), model: space };
     } catch (err) {
       const msg = errorText(err);
       console.warn(`[try-on] ${space} failed: ${msg.slice(0, 200)}`);

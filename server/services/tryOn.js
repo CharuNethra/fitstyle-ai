@@ -16,8 +16,9 @@ export function fashnCategory(product) {
 
 /** Garment reference for real try-on models: the product photo when available, otherwise the rendered illustration. */
 export async function garmentPng(product, width = 768) {
-  if (product.image) {
-    const file = path.join(PUBLIC_DIR, path.normalize(product.image).replace(/^([/\\])+/, ''));
+  const source = product.tryOnImage || product.image;
+  if (source) {
+    const file = path.join(PUBLIC_DIR, path.normalize(source).replace(/^([/\\])+/, ''));
     return sharp(await fs.readFile(file)).flatten({ background: '#ffffff' }).png().toBuffer();
   }
   return sharp(Buffer.from(garmentSvg(product, { background: true })))
