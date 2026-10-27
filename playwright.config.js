@@ -13,7 +13,7 @@ export default defineConfig({
   // Isolated servers with AI keys blanked so E2E runs deterministically on the mock pipeline.
   webServer: {
     command: 'npx concurrently "vite --port 5174 --strictPort" "node server/index.js"',
-    env: { PORT: '5055', FAL_KEY: '', FASHN_API_KEY: '', OPENAI_API_KEY: '', GEMINI_API_KEY: '' },
+    env: { PORT: '5055', TRYON_PROVIDER: 'mock', FAL_KEY: '', FASHN_API_KEY: '', OPENAI_API_KEY: '', GEMINI_API_KEY: '' },
     url: 'http://localhost:5174',
     reuseExistingServer: false,
     timeout: 60_000,

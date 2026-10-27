@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { garmentSvg, GARMENT_SHAPES } from '../../shared/garments.js';
 import { analyzePhoto, bufferToDataUrl } from './imageUtils.js';
+import { huggingFaceTryOn } from './hfTryOn.js';
 
 const ONE_PIECE = new Set(['dress', 'gown']);
 const PUBLIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
@@ -142,16 +143,25 @@ async function fashnTryOn(photo, product, config) {
   throw new Error('FASHN timed out');
 }
 
+async function hfTryOn(photo, product, config) {
+  return huggingFaceTryOn(photo, await garmentPng(product), product, fashnCategory(product), config);
+}
+
+const PROVIDERS = { huggingface: hfTryOn, fal: falTryOn, fashn: fashnTryOn };
+
 export async function runTryOn(photo, product, config) {
-  if (config.tryOnProvider !== 'mock') {
+  const fn = PROVIDERS[config.tryOnProvider];
+  if (fn) {
     try {
-      const fn = config.tryOnProvider === 'fal' ? falTryOn : fashnTryOn;
       const result = await fn(photo, product, config);
       return { ...result, provider: config.tryOnProvider };
     } catch (err) {
       console.warn(`[try-on] ${config.tryOnProvider} failed, using mock pipeline:`, err.message);
       const result = await mockTryOn(photo, product);
-      return { ...result, provider: 'mock', warning: `${config.tryOnProvider} unavailable — showing preview pipeline result.` };
+      const warning = err.quota
+        ? 'Free Hugging Face GPU quota reached (add HF_TOKEN for more) — showing preview pipeline result.'
+        : `${config.tryOnProvider} unavailable — showing preview pipeline result.`;
+      return { ...result, provider: 'mock', warning };
     }
   }
   const result = await mockTryOn(photo, product);

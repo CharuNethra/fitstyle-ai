@@ -1,10 +1,16 @@
 export function getConfig(env = process.env) {
-  const tryOnProvider = env.FAL_KEY ? 'fal' : env.FASHN_API_KEY ? 'fashn' : 'mock';
+  const tryOnProvider = (env.TRYON_PROVIDER || 'huggingface').toLowerCase();
   const visionProvider = env.OPENAI_API_KEY ? 'openai' : env.GEMINI_API_KEY ? 'gemini' : 'mock';
   return {
     port: Number(env.PORT) || 5001,
     tryOnProvider,
     visionProvider,
+    hfToken: env.HF_TOKEN || undefined,
+    hfSpaces: (env.HF_TRYON_SPACES || 'yisol/IDM-VTON,Nymbo/Virtual-Try-On')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+    hfDressSpace: env.HF_DRESS_SPACE ?? 'levihsu/OOTDiffusion',
     falKey: env.FAL_KEY,
     falModel: env.FAL_TRYON_MODEL || 'fal-ai/fashn/tryon/v1.6',
     fashnKey: env.FASHN_API_KEY,

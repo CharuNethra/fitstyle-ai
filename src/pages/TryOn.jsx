@@ -17,7 +17,7 @@ const STAGES = [
   { key: 'style', label: 'Styling your complete look' },
 ];
 
-const PROVIDER_LABEL = { mock: 'FitStyle preview engine', fal: 'Fal.ai · FASHN', fashn: 'FASHN', openai: 'OpenAI', gemini: 'Google Gemini' };
+const PROVIDER_LABEL = { mock: 'FitStyle preview engine', huggingface: 'Hugging Face', fal: 'Fal.ai · FASHN', fashn: 'FASHN', openai: 'OpenAI', gemini: 'Google Gemini' };
 
 function OutfitPicker({ selectedId, onSelect }) {
   const [cat, setCat] = useState('All');
@@ -200,7 +200,10 @@ export default function TryOn() {
                     <button key={v} onClick={() => setView(v)} className={`rounded-full px-3 py-1.5 capitalize ${view === v ? 'bg-ink text-white' : 'text-ink/60'}`}>{v === 'result' ? 'AI Try-On' : v}</button>
                   ))}
                 </div>
-                <span className="chip">{PROVIDER_LABEL[result.provider] || result.provider}</span>
+                <span className="chip">
+                  {PROVIDER_LABEL[result.provider] || result.provider}
+                  {result.model ? ` · ${result.model.split('/').pop()}` : ''}
+                </span>
               </div>
               <div className={`grid flex-1 gap-3 ${view === 'compare' ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 {(view === 'original' || view === 'compare') && (
@@ -231,6 +234,7 @@ export default function TryOn() {
                   {s.label}
                 </li>
               ))}
+              <li className="pt-1 text-xs text-ink/40">Free AI try-on can take up to a minute when the GPU queue is busy.</li>
             </ol>
           )}
         </section>

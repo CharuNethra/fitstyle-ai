@@ -10,7 +10,7 @@ Runs fully out-of-the-box: with no API keys the backend uses a built-in mock AI 
 | --- | --- |
 | Frontend | React 19 + Vite, React Router, Tailwind CSS, Lucide React |
 | Backend | Node.js + Express, Multer (uploads), Sharp (image processing) |
-| Virtual try-on | Fal.ai (FASHN v1.6 or Kling VTON), FASHN API, or built-in mock |
+| Virtual try-on | Free open-source IDM-VTON / OOTDiffusion on Hugging Face Spaces via `@gradio/client` (default), or Fal.ai / FASHN (paid), or built-in mock |
 | Match score & styling | OpenAI GPT-4o (vision) or Google Gemini, or built-in rule engine |
 | Tests | Node test runner + Supertest (API), Playwright (E2E) |
 
@@ -54,8 +54,12 @@ npm start                  # http://localhost:5001
 All keys are optional and go in **`.env`** at the project root (copy from [`.env.example`](.env.example)). Restart `npm run dev` after editing. The first configured provider in each group is used; if a provider call fails the server logs it and falls back to the mock so the UI never breaks.
 
 ```dotenv
-# Virtual try-on
-FAL_KEY=...                                   # https://fal.ai/dashboard/keys
+# Virtual try-on (default: free Hugging Face Spaces, no key needed)
+TRYON_PROVIDER=huggingface                    # huggingface | fal | fashn | mock
+HF_TOKEN=hf_...                               # optional, free: raises the ZeroGPU daily quota
+HF_TRYON_SPACES=yisol/IDM-VTON,Nymbo/Virtual-Try-On
+HF_DRESS_SPACE=levihsu/OOTDiffusion           # tried first for dresses/gowns
+FAL_KEY=...                                   # TRYON_PROVIDER=fal, https://fal.ai/dashboard/keys
 FAL_TRYON_MODEL=fal-ai/fashn/tryon/v1.6       # or fal-ai/kling/v1-5/kolors-virtual-try-on (Kling VTON)
 FASHN_API_KEY=...                             # https://app.fashn.ai/api (direct FASHN v1.6)
 
@@ -66,11 +70,19 @@ GEMINI_API_KEY=...                            # https://aistudio.google.com/app/
 GEMINI_MODEL=gemini-3-flash-preview          # falls back to other Gemini models on 503/429/timeouts
 ```
 
-Where the keys are used: [`server/config.js`](server/config.js) (provider selection), [`server/services/tryOn.js`](server/services/tryOn.js) (Fal.ai / FASHN), [`server/services/vision.js`](server/services/vision.js) (OpenAI / Gemini). Keys are only read on the server and never sent to the browser. `.env` is git-ignored.
+### Free try-on on Hugging Face
+
+With the default `TRYON_PROVIDER=huggingface`, [`server/services/hfTryOn.js`](server/services/hfTryOn.js) pads your photo to 3:4, sends it with the product photo to the public [IDM-VTON](https://huggingface.co/spaces/yisol/IDM-VTON) Space (mirror: `Nymbo/Virtual-Try-On`), and crops the result back to your photo's frame; dresses try [OOTDiffusion](https://huggingface.co/spaces/levihsu/OOTDiffusion)'s dress model first. A run takes ~20–60 s. Limits to know:
+
+- These Spaces run on ZeroGPU, which has a small **daily GPU quota per visitor/IP** when anonymous. Set a free `HF_TOKEN` to get a larger quota. When the quota is used up the app falls back to the mock preview and says so.
+- IDM-VTON only replaces **upper-body** garments; a dress sent to it comes back as a top. OOTDiffusion handles dresses.
+- Public Spaces can be paused or busy; the next Space in the list is tried, then the mock.
+
+Where the keys are used: [`server/config.js`](server/config.js) (provider selection), [`server/services/tryOn.js`](server/services/tryOn.js) (Hugging Face / Fal.ai / FASHN), [`server/services/vision.js`](server/services/vision.js) (OpenAI / Gemini). Keys are only read on the server and never sent to the browser. `.env` is git-ignored.
 
 ### Adding product photos
 
-Drop an image into `public/images/products/` and set `image: '/images/products/<file>.jpg'` on the product in [`shared/products.js`](shared/products.js) (optional: `imageFit: 'contain' | 'cover'`, `imageBg`, `tryOnCategory: 'auto' | 'tops' | 'bottoms' | 'one-pieces'`). The photo is used in the catalogue and is sent to Fal.ai as the garment reference for try-on.
+Drop an image into `public/images/products/` and set `image: '/images/products/<file>.jpg'` on the product in [`shared/products.js`](shared/products.js) (optional: `imageFit: 'contain' | 'cover'`, `imageBg`, `tryOnCategory: 'auto' | 'tops' | 'bottoms' | 'one-pieces'`). The photo is used in the catalogue and is sent to the try-on model as the garment reference.
 
 ## API
 
@@ -91,7 +103,7 @@ Uploads: JPEG, PNG, WEBP, GIF, AVIF or SVG, max 12 MB.
 npm run lint
 npm test                   # API tests (node:test + supertest)
 npx playwright install chromium   # first time only
-npm run test:e2e           # end-to-end browser flows on isolated ports 5174/5055 with AI keys blanked (mock pipeline); fails on any console error
+npm run test:e2e           # end-to-end browser flows on isolated ports 5174/5055 with `TRYON_PROVIDER=mock` and AI keys blanked; fails on any console error
 ```
 
 The E2E suite covers category filtering and search, product → cart → quantity → checkout, wishlist management, upload (file input, drag-and-drop, sample) → try-on → match score → complete look, and both consent paths (YES shows the grid, NO clears history).

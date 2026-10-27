@@ -9,17 +9,19 @@ import { getConfig } from '../config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const samplePhoto = fs.readFileSync(path.resolve(__dirname, '../../public/samples/sample-model.svg'));
-const app = createApp(getConfig({}));
+const app = createApp(getConfig({ TRYON_PROVIDER: 'mock' }));
 
 test('health reports mock providers when no keys are configured', async () => {
   const res = await request(app).get('/api/health').expect(200);
   assert.deepEqual(res.body.providers, { tryOn: 'mock', vision: 'mock' });
 });
 
-test('config picks real providers when keys are present', () => {
+test('config defaults to free Hugging Face try-on and picks Gemini when keyed', () => {
   const c = getConfig({ FAL_KEY: 'x', GEMINI_API_KEY: 'y' });
-  assert.equal(c.tryOnProvider, 'fal');
+  assert.equal(c.tryOnProvider, 'huggingface');
+  assert.deepEqual(c.hfSpaces, ['yisol/IDM-VTON', 'Nymbo/Virtual-Try-On']);
   assert.equal(c.visionProvider, 'gemini');
+  assert.equal(getConfig({ TRYON_PROVIDER: 'fal' }).tryOnProvider, 'fal');
 });
 
 test('products endpoint lists the catalogue', async () => {
