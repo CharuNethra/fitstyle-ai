@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 800" width="600" height="1200">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#f4efe8"/><stop offset="1" stop-color="#ebe3d7"/></linearGradient>
+    <linearGradient id="skin" x1="0" x2="1"><stop offset="0" stop-color="#c58c6a"/><stop offset="0.5" stop-color="#dba585"/><stop offset="1" stop-color="#c08465"/></linearGradient>
+  </defs>
+  <rect width="400" height="800" fill="url(#bg)"/>
+  <ellipse cx="200" cy="772" rx="90" ry="10" fill="#d8cdbd"/>
+  <!-- hair back -->
+  <path d="M158 70 Q200 30 242 70 L248 150 Q200 170 152 150 Z" fill="#2b1d16"/>
+  <!-- neck & head -->
+  <rect x="186" y="118" width="28" height="36" rx="10" fill="url(#skin)"/>
+  <ellipse cx="200" cy="92" rx="34" ry="42" fill="url(#skin)"/>
+  <path d="M164 82 Q200 40 236 82 Q232 58 200 52 Q168 58 164 82 Z" fill="#2b1d16"/>
+  <!-- torso -->
+  <path d="M146 160 Q200 146 254 160 L262 230 Q252 290 246 330 L256 420 L144 420 L154 330 Q148 290 138 230 Z" fill="url(#skin)"/>
+  <!-- arms -->
+  <path d="M146 162 Q126 170 122 210 L112 330 Q108 380 118 410 L132 408 Q130 370 136 330 L150 230 Z" fill="url(#skin)"/>
+  <path d="M254 162 Q274 170 278 210 L288 330 Q292 380 282 410 L268 408 Q270 370 264 330 L250 230 Z" fill="url(#skin)"/>
+  <!-- base layer -->
+  <path d="M150 300 Q200 310 250 300 L258 430 L142 430 Z" fill="#e9e1d6"/>
+  <path d="M152 170 Q200 182 248 170 L250 250 Q200 262 150 250 Z" fill="#e9e1d6"/>
+  <!-- legs -->
+  <path d="M146 420 L198 420 L192 600 L186 750 L166 752 L162 600 Z" fill="url(#skin)"/>
+  <path d="M254 420 L202 420 L208 600 L214 750 L234 752 L238 600 Z" fill="url(#skin)"/>
+  <path d="M160 748 L190 748 L192 766 L150 768 Z" fill="#2b2b2b"/>
+  <path d="M210 748 L240 748 L250 768 L208 766 Z" fill="#2b2b2b"/>
+</svg>
