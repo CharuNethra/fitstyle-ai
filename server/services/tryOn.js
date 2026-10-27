@@ -1,14 +1,24 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { garmentSvg, GARMENT_SHAPES } from '../../shared/garments.js';
 import { analyzePhoto, bufferToDataUrl } from './imageUtils.js';
 
 const ONE_PIECE = new Set(['dress', 'gown']);
+const PUBLIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
 
 export function fashnCategory(product) {
+  if (product.tryOnCategory) return product.tryOnCategory;
   return ONE_PIECE.has(product.type) ? 'one-pieces' : 'tops';
 }
 
+/** Garment reference for real try-on models: the product photo when available, otherwise the rendered illustration. */
 export async function garmentPng(product, width = 768) {
+  if (product.image) {
+    const file = path.join(PUBLIC_DIR, path.normalize(product.image).replace(/^([/\\])+/, ''));
+    return sharp(await fs.readFile(file)).flatten({ background: '#ffffff' }).png().toBuffer();
+  }
   return sharp(Buffer.from(garmentSvg(product, { background: true })))
     .resize({ width })
     .flatten({ background: '#ffffff' })
@@ -95,6 +105,7 @@ async function falTryOn(photo, product, config) {
     method: 'POST',
     headers: { Authorization: `Key ${config.falKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(config.tryOnTimeoutMs ?? 120_000),
   });
   if (!res.ok) throw new Error(`fal.ai responded ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const json = await res.json();

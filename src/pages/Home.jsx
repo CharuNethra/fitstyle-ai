@@ -12,11 +12,11 @@ const FEATURES = [
 ];
 
 const CATEGORY_TILES = [
-  { name: 'Dresses', product: 'aurelia-satin-slip' },
-  { name: 'Tops', product: 'ivory-silk-blouse' },
-  { name: 'Outerwear', product: 'camel-wool-coat' },
+  { name: 'Dresses', product: 'scarlet-cocktail' },
+  { name: 'Tops', product: 'starlight-print-shirt' },
+  { name: 'Outerwear', product: 'sand-three-piece-suit' },
   { name: 'Casual', product: 'riviera-stripe-sundress' },
-  { name: 'Formal', product: 'noir-column-gown' },
+  { name: 'Formal', product: 'crimson-satin-ballgown' },
 ];
 
 export default function Home() {
@@ -40,7 +40,7 @@ export default function Home() {
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
-            {['emerald-wrap-midi', 'noir-column-gown', 'camel-wool-coat'].map((id, i) => (
+            {['crimson-satin-ballgown', 'dusty-rose-three-piece-suit', 'blush-tulle-gown'].map((id, i) => (
               <div key={id} className={`animate-fade-up ${i === 1 ? 'translate-y-8' : ''}`} style={{ animationDelay: `${i * 120}ms` }}>
                 <ProductImage product={byId[id]} className="aspect-[3/5] rounded-[2rem] ring-1 ring-white/10" />
               </div>

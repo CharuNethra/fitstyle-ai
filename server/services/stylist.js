@@ -192,9 +192,21 @@ Evaluate against fashion rules (fit/silhouette, colour harmony with skin underto
 Return JSON: {"score": integer 0-100, "headline": "e.g. 88% Match for your hourglass shape and warm tone", "bodyShape": string, "skinTone": string, "breakdown": [{"label": string, "score": integer 0-100, "detail": one sentence}] (exactly 5 items with labels Fit & Silhouette, Color Harmony, Color Contrast, Seasonal Compatibility, Style Versatility)}`;
   try {
     const json = await visionJson(prompt, image, config);
-    if (typeof json.score !== 'number' || !Array.isArray(json.breakdown)) throw new Error('Malformed AI response');
-    json.score = clamp(Math.round(json.score), 0, 100);
-    return { ...json, provider: config.visionProvider };
+    const score = Number(json.score);
+    if (!Number.isFinite(score) || !Array.isArray(json.breakdown) || !json.breakdown.length) throw new Error('Malformed AI response');
+    const rounded = clamp(Math.round(score), 0, 100);
+    return {
+      score: rounded,
+      headline: String(json.headline || `${rounded}% Match for your body shape and tone`),
+      bodyShape: String(json.bodyShape || 'balanced'),
+      skinTone: String(json.skinTone || 'medium'),
+      breakdown: json.breakdown.slice(0, 5).map((b) => ({
+        label: String(b.label || 'Style'),
+        score: clamp(Math.round(Number(b.score) || rounded), 0, 100),
+        detail: String(b.detail || ''),
+      })),
+      provider: config.visionProvider,
+    };
   } catch (err) {
     console.warn('[match] AI provider failed, using rule engine:', err.message);
     return { ...(await mockMatch(product, image)), provider: 'mock', warning: 'AI scoring unavailable — showing rule-based score.' };
@@ -209,10 +221,13 @@ Using the attached try-on image (if present), recommend complementary items.
 Return JSON: {"hairstyles": [{"name": string, "description": one sentence}] x3, "accessories": [{"name","description"}] x3, "footwear": [{"name","description"}] x3, "stylistNote": one sentence}`;
   try {
     const json = await visionJson(prompt, image, config);
-    if (!Array.isArray(json.hairstyles) || !Array.isArray(json.accessories) || !Array.isArray(json.footwear)) {
-      throw new Error('Malformed AI response');
-    }
-    return { ...json, provider: config.visionProvider };
+    const items = (list) => (Array.isArray(list) ? list : [])
+      .map((it) => (typeof it === 'string' ? { name: it, description: '' } : { name: String(it?.name || ''), description: String(it?.description || '') }))
+      .filter((it) => it.name)
+      .slice(0, 3);
+    const out = { hairstyles: items(json.hairstyles), accessories: items(json.accessories), footwear: items(json.footwear) };
+    if (!out.hairstyles.length || !out.accessories.length || !out.footwear.length) throw new Error('Malformed AI response');
+    return { ...out, stylistNote: String(json.stylistNote || ''), provider: config.visionProvider };
   } catch (err) {
     console.warn('[styling] AI provider failed, using rule engine:', err.message);
     return { ...mockStyling(product, match), provider: 'mock', warning: 'AI stylist unavailable — showing curated suggestions.' };

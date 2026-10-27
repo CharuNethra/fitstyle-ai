@@ -11,6 +11,6 @@ export function getConfig(env = process.env) {
     openaiKey: env.OPENAI_API_KEY,
     openaiModel: env.OPENAI_MODEL || 'gpt-4o',
     geminiKey: env.GEMINI_API_KEY,
-    geminiModel: env.GEMINI_MODEL || 'gemini-2.5-flash',
+    geminiModel: env.GEMINI_MODEL || 'gemini-3-flash-preview',
   };
 }

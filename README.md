@@ -16,7 +16,7 @@ Runs fully out-of-the-box: with no API keys the backend uses a built-in mock AI 
 
 ## Features
 
-- **Catalogue** – 24 products, category filter (Dresses, Tops, Outerwear, Casual, Formal), search and sort.
+- **Catalogue** – 26 products (real product photos in `public/images/products/`, the rest rendered as vector illustrations), category filter (Dresses, Tops, Outerwear, Casual, Formal), search and sort.
 - **Product page** – size picker with **Try On Now**, **Add to Cart** and **Add to Wishlist**.
 - **Try-On Studio** (`/try-on`) – choose an outfit, drag-and-drop / browse a photo (or use the sample model), click **Try On**:
   1. `/api/try-on` composites the garment onto your photo,
@@ -63,10 +63,14 @@ FASHN_API_KEY=...                             # https://app.fashn.ai/api (direct
 OPENAI_API_KEY=...                            # https://platform.openai.com/api-keys
 OPENAI_MODEL=gpt-4o
 GEMINI_API_KEY=...                            # https://aistudio.google.com/app/apikey
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3-flash-preview          # falls back to other Gemini models on 503/429/timeouts
 ```
 
 Where the keys are used: [`server/config.js`](server/config.js) (provider selection), [`server/services/tryOn.js`](server/services/tryOn.js) (Fal.ai / FASHN), [`server/services/vision.js`](server/services/vision.js) (OpenAI / Gemini). Keys are only read on the server and never sent to the browser. `.env` is git-ignored.
+
+### Adding product photos
+
+Drop an image into `public/images/products/` and set `image: '/images/products/<file>.jpg'` on the product in [`shared/products.js`](shared/products.js) (optional: `imageFit: 'contain' | 'cover'`, `imageBg`, `tryOnCategory: 'auto' | 'tops' | 'bottoms' | 'one-pieces'`). The photo is used in the catalogue and is sent to Fal.ai as the garment reference for try-on.
 
 ## API
 
@@ -87,7 +91,7 @@ Uploads: JPEG, PNG, WEBP, GIF, AVIF or SVG, max 12 MB.
 npm run lint
 npm test                   # API tests (node:test + supertest)
 npx playwright install chromium   # first time only
-npm run test:e2e           # end-to-end browser flows, fails on any console error
+npm run test:e2e           # end-to-end browser flows on isolated ports 5174/5055 with AI keys blanked (mock pipeline); fails on any console error
 ```
 
 The E2E suite covers category filtering and search, product → cart → quantity → checkout, wishlist management, upload (file input, drag-and-drop, sample) → try-on → match score → complete look, and both consent paths (YES shows the grid, NO clears history).
@@ -103,7 +107,7 @@ src/               React app
   context/         Cart / wishlist / interaction-history / consent store
   pages/           Home, Shop, ProductDetail, TryOn, Cart, Wishlist, ForYou
 e2e/               Playwright tests
-public/            Favicon and sample model photo
+public/            Favicon, sample model, product photos (images/products/)
 ```
 
 ## Privacy notes
