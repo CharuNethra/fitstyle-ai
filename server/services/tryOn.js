@@ -5,6 +5,7 @@ import sharp from 'sharp';
 import { garmentSvg, GARMENT_SHAPES } from '../../shared/garments.js';
 import { analyzePhoto, bufferToDataUrl } from './imageUtils.js';
 import { huggingFaceTryOn } from './hfTryOn.js';
+import { geminiTryOn } from './geminiTryOn.js';
 
 const ONE_PIECE = new Set(['dress', 'gown']);
 const PUBLIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
@@ -148,7 +149,12 @@ async function hfTryOn(photo, product, config) {
   return huggingFaceTryOn(photo, await garmentPng(product), product, fashnCategory(product), config);
 }
 
-const PROVIDERS = { huggingface: hfTryOn, fal: falTryOn, fashn: fashnTryOn };
+async function geminiImageTryOn(photo, product, config) {
+  return geminiTryOn(photo, await garmentPng(product), product, fashnCategory(product), config);
+}
+
+const PROVIDERS = { gemini: geminiImageTryOn, huggingface: hfTryOn, fal: falTryOn, fashn: fashnTryOn };
+const PROVIDER_NAMES = { gemini: 'Gemini', huggingface: 'Hugging Face', fal: 'Fal.ai', fashn: 'FASHN' };
 
 export async function runTryOn(photo, product, config) {
   const fn = PROVIDERS[config.tryOnProvider];
@@ -159,9 +165,10 @@ export async function runTryOn(photo, product, config) {
     } catch (err) {
       console.warn(`[try-on] ${config.tryOnProvider} failed, using mock pipeline:`, err.message);
       const result = await mockTryOn(photo, product);
+      const name = PROVIDER_NAMES[config.tryOnProvider] || config.tryOnProvider;
       const warning = err.quota
-        ? 'Free Hugging Face GPU quota reached (add HF_TOKEN for more) — showing preview pipeline result.'
-        : `${config.tryOnProvider} unavailable — showing preview pipeline result.`;
+        ? `${name} try-on quota reached — showing preview pipeline result.`
+        : `${name} try-on unavailable — showing preview pipeline result.`;
       return { ...result, provider: 'mock', warning };
     }
   }

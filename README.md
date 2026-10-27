@@ -10,7 +10,7 @@ Runs fully out-of-the-box: with no API keys the backend uses a built-in mock AI 
 | --- | --- |
 | Frontend | React 19 + Vite, React Router, Tailwind CSS, Lucide React |
 | Backend | Node.js + Express, Multer (uploads), Sharp (image processing) |
-| Virtual try-on | Free open-source IDM-VTON / OOTDiffusion on Hugging Face Spaces via `@gradio/client` (default), or Fal.ai / FASHN (paid), or built-in mock |
+| Virtual try-on | Google AI Studio Gemini image model (`gemini-3.1-flash-image`, default when `GEMINI_API_KEY` is set), free open-source IDM-VTON / OOTDiffusion on Hugging Face Spaces via `@gradio/client`, Fal.ai / FASHN (paid), or built-in mock |
 | Match score & styling | OpenAI GPT-4o (vision) or Google Gemini, or built-in rule engine |
 | Tests | Node test runner + Supertest (API), Playwright (E2E) |
 
@@ -55,7 +55,8 @@ All keys are optional and go in **`.env`** at the project root (copy from [`.env
 
 ```dotenv
 # Virtual try-on (default: free Hugging Face Spaces, no key needed)
-TRYON_PROVIDER=huggingface                    # huggingface | fal | fashn | mock
+TRYON_PROVIDER=                               # gemini (default with GEMINI_API_KEY) | huggingface | fal | fashn | mock
+GEMINI_IMAGE_MODEL=gemini-3.1-flash-image     # try-on image model; falls back to gemini-2.5-flash-image
 HF_TOKEN=hf_...                               # optional, free: raises the ZeroGPU daily quota
 HF_TRYON_SPACES=yisol/IDM-VTON,Nymbo/Virtual-Try-On
 HF_DRESS_SPACE=levihsu/OOTDiffusion           # tried first for dresses/gowns
@@ -72,7 +73,13 @@ GEMINI_MODEL=gemini-3-flash-preview          # falls back to other Gemini models
 
 ### Free try-on on Hugging Face
 
-With the default `TRYON_PROVIDER=huggingface`, [`server/services/hfTryOn.js`](server/services/hfTryOn.js) preprocesses both images (see below), sends them to the public [IDM-VTON](https://huggingface.co/spaces/yisol/IDM-VTON) Space (mirror: `Nymbo/Virtual-Try-On`), and crops the result back to your photo's frame; dresses try [OOTDiffusion](https://huggingface.co/spaces/levihsu/OOTDiffusion)'s dress model first. A run takes ~20–60 s. Limits to know:
+### Gemini try-on (default)
+
+When `GEMINI_API_KEY` is set and `TRYON_PROVIDER` is empty, [`server/services/geminiTryOn.js`](server/services/geminiTryOn.js) preprocesses both images (see below) and sends them with a try-on prompt to the Gemini image model from Google AI Studio (`GEMINI_IMAGE_MODEL`, default `gemini-3.1-flash-image`, falling back to `gemini-2.5-flash-image` on overload or rate limits). The 3:4 result is cropped back to your photo's frame. It handles dresses, tops and outerwear and takes ~10–30 s. Image generation counts against your AI Studio quota; when it is exhausted the page falls back to the preview pipeline with a notice.
+
+### Hugging Face try-on
+
+With `TRYON_PROVIDER=huggingface` (the default when no Gemini key is set), [`server/services/hfTryOn.js`](server/services/hfTryOn.js) preprocesses both images (see below), sends them to the public [IDM-VTON](https://huggingface.co/spaces/yisol/IDM-VTON) Space (mirror: `Nymbo/Virtual-Try-On`), and crops the result back to your photo's frame; dresses try [OOTDiffusion](https://huggingface.co/spaces/levihsu/OOTDiffusion)'s dress model first. A run takes ~20–60 s. Limits to know:
 
 - These Spaces run on ZeroGPU, which has a small **daily GPU quota per visitor/IP** when anonymous. Set a free `HF_TOKEN` to get a larger quota. When the quota is used up the app falls back to the mock preview and says so.
 - IDM-VTON only replaces **upper-body** garments; a dress sent to it comes back as a top. OOTDiffusion handles dresses, but it copies whatever is in the garment photo (e.g. a model's scarf or bag), so flat-lay or plain product shots give the cleanest results.

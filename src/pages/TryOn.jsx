@@ -234,7 +234,7 @@ export default function TryOn() {
                   {s.label}
                 </li>
               ))}
-              <li className="pt-1 text-xs text-ink/40">Free AI try-on can take up to a minute when the GPU queue is busy.</li>
+              <li className="pt-1 text-xs text-ink/40">AI try-on usually takes 10–60 seconds.</li>
             </ol>
           )}
         </section>

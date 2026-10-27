@@ -1,5 +1,5 @@
 export function getConfig(env = process.env) {
-  const tryOnProvider = (env.TRYON_PROVIDER || 'huggingface').toLowerCase();
+  const tryOnProvider = (env.TRYON_PROVIDER || (env.GEMINI_API_KEY ? 'gemini' : 'huggingface')).toLowerCase();
   const visionProvider = env.OPENAI_API_KEY ? 'openai' : env.GEMINI_API_KEY ? 'gemini' : 'mock';
   return {
     port: Number(env.PORT) || 5001,
@@ -18,5 +18,6 @@ export function getConfig(env = process.env) {
     openaiModel: env.OPENAI_MODEL || 'gpt-4o',
     geminiKey: env.GEMINI_API_KEY,
     geminiModel: env.GEMINI_MODEL || 'gemini-3-flash-preview',
+    geminiImageModel: env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image',
   };
 }

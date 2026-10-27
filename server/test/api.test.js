@@ -16,12 +16,15 @@ test('health reports mock providers when no keys are configured', async () => {
   assert.deepEqual(res.body.providers, { tryOn: 'mock', vision: 'mock' });
 });
 
-test('config defaults to free Hugging Face try-on and picks Gemini when keyed', () => {
+test('config picks Gemini try-on and vision when keyed, Hugging Face otherwise', () => {
   const c = getConfig({ FAL_KEY: 'x', GEMINI_API_KEY: 'y' });
-  assert.equal(c.tryOnProvider, 'huggingface');
+  assert.equal(c.tryOnProvider, 'gemini');
+  assert.equal(c.geminiImageModel, 'gemini-3.1-flash-image');
+  assert.equal(getConfig({}).tryOnProvider, 'huggingface');
   assert.deepEqual(c.hfSpaces, ['yisol/IDM-VTON', 'Nymbo/Virtual-Try-On']);
   assert.equal(c.visionProvider, 'gemini');
   assert.equal(getConfig({ TRYON_PROVIDER: 'fal' }).tryOnProvider, 'fal');
+  assert.equal(getConfig({ GEMINI_API_KEY: 'k', TRYON_PROVIDER: 'huggingface' }).tryOnProvider, 'huggingface');
 });
 
 test('products endpoint lists the catalogue', async () => {
