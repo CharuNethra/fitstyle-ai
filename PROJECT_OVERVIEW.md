@@ -1,122 +1,127 @@
-# FitStyle AI: How We Built It (Beginner's Guide)
+# FitStyle AI: Project Overview (Beginner's Guide)
 
-This guide explains, in plain language, how the FitStyle AI virtual try-on shop was built. You don't need any coding knowledge to read it.
+FitStyle AI is an online clothing shop where you can **see an outfit on your own photo before buying it**. AI also tells you how well the outfit suits you and what hair, accessories and shoes would complete the look.
 
----
-
-## Step 1: What the App Does
-
-FitStyle AI is an online clothing shop where you can **see clothes on yourself before you buy them**.
-
-What a shopper does, step by step:
-
-1. **Browse the shop.** There are 26 items (dresses, tops, outerwear, casual and formal wear), and you can filter by category or search.
-2. **Pick an outfit** and open its product page.
-3. **Upload a full-body photo** of yourself. You can drag it onto the page or choose it from your computer. There is also a sample photo you can use instead.
-4. **Click "Try On".** A few seconds later, AI shows you a picture of yourself wearing the outfit.
-5. **See your match score**, for example "84% Match", with a short explanation of why the outfit suits you.
-6. **Get styling tips**: hairstyles, accessories and shoes that go with the outfit.
-7. **Shop as normal**: add items to your cart or wishlist and go through a pretend checkout. No real payment is taken.
-8. **Personal picks, only if you say yes.** On the "For You" page, the app first asks: *"Would you like to see personalized dress recommendations based on your recent wishlist, cart, and search history?"*
-   - **YES** shows dresses picked to match your taste.
-   - **NO** hides the picks and forgets what you browsed.
+This guide explains the project in plain language so you can describe it confidently, for example in an interview.
 
 ---
 
-## Step 2: The UI & Setup (How the Web Page Was Built)
+## 1. Technologies Used & Why We Used Them
 
-The app has two halves:
+| Tool | What it is | Why we chose it |
+|------|------------|-----------------|
+| **React** | A popular library for building web pages out of small reusable pieces called "components" (for example, one product card design reused for every item). | It keeps the interface organised, and it updates instantly when things change, like adding an item to the cart. |
+| **Vite** | A development tool that runs the website on your computer while you build it and packages it for the internet. | It is very fast: changes appear in the browser almost instantly, which speeds up building and testing. |
+| **Node.js** | A way to run JavaScript on a server (a computer in the background), not just in the browser. | We use the same language (JavaScript) for the front end and the back end, so the project is simpler to build and maintain. |
+| **Express** | A lightweight toolkit on top of Node.js for creating a server and its web addresses, such as `/api/try-on`. | It is simple and widely used. We use it to receive photos, call the AI services and send results back to the page. |
+| **Hugging Face IDM-VTON** | A free, open-source AI model, hosted on Hugging Face, that puts a garment onto a photo of a person. | It gives realistic try-on results without paying for a commercial service, which made it ideal for building and testing. |
+| **Google Gemini API** | Google's AI that can look at images and write about them. One version can also create images. | It powers the AI stylist (match score and styling tips), and it is now also the default try-on engine because it is fast and reliable. |
+| **Vercel** | A hosting platform that puts the website online and runs the server code automatically. | It deploys a new version every time we push code to GitHub, and it is free for a project of this size. |
 
-| Part | What it is | Simple comparison |
-|------|-------------|-------------------|
-| **Front end** | The web pages you see and click | The shop floor |
-| **Back end** | A server that does the heavy work and talks to the AI services | The back office |
-
-**How the pages were built:**
-
-- **React** builds the pages out of small, reusable pieces called *components*. For example, one "product card" design is reused for every item in the shop, so a change to that design updates every card at once.
-- **Tailwind CSS** handles the look: colours, spacing and fonts. We went for a clean, luxury style with cream, black and gold.
-- **Lucide icons** supply the small icons, such as the heart for wishlist and the bag for cart.
-- **Vite** is the tool that runs the site while we work on it and packages it for the web.
-
-**The main pages:** Home, Shop, Product page, Try-On Studio, Cart, Wishlist and "For You".
-
-**Remembering your choices:** the cart, wishlist and recent searches are saved in your own browser, so they are still there when you come back.
-
-**Testing:** we wrote automatic tests that click through the app like a real person would (shop, add to cart, upload a photo, try on, say yes or no to recommendations). If anything breaks or shows an error, the tests fail and tell us.
-
-**Where it lives:** the code is stored on GitHub and the website runs on Vercel.
+> Also used: **Tailwind CSS** (styling and colours), **Lucide** (icons), **Sharp** (image resizing on the server) and **Playwright** (automatic browser tests).
 
 ---
 
-## Step 3: The Virtual Try-On Feature (How AI Puts Clothes on Your Photo)
+## 2. Application Workflow
 
-The try-on feature is the heart of the app. In plain terms:
+What happens when a user tries on an outfit:
 
-1. The app takes **two pictures**: your photo, and a photo of the garment.
-2. It sends both to an **AI image model**. This is a program that has learned from millions of pictures what clothes look like on people.
-3. The AI works out where your body, arms and pose are, and **"repaints" you wearing the new garment**, with natural folds, lighting and shadows.
-4. The finished picture comes back to the app and appears next to your original photo, so you can compare them.
+1. **Choose an outfit.** The user browses the shop (dresses, tops, outerwear, casual, formal) and clicks **"Try On Now"** on a product.
+2. **Upload a photo.** The user drags in a full-body photo or picks one from their device. A sample photo is also available.
+3. **Shrink for upload.** The browser shrinks very large photos so they upload quickly.
+4. **Send to the server.** When the user clicks **"Try On"**, the photo and the chosen product go to our Express server.
+5. **Clean the images.** The server tidies both images to a standard size and shape (see Section 5).
+6. **Create the try-on image.** The server sends the image pair to the AI try-on engine, which returns a new picture of the user wearing the outfit.
+7. **Score it.** The finished picture goes to Google Gemini, which returns a **match score** with a 5-point explanation.
+8. **Style it.** Gemini also suggests **3 hairstyles, 3 accessories and 3 pairs of shoes**.
+9. **Show the results.** The page shows the try-on image (with an Original/Compare toggle), the score and the styling ideas.
+10. **Keep shopping.** The user can add the item to the cart or wishlist and go through a pretend checkout.
 
-**How Hugging Face fits in:**
-Hugging Face is a website that hosts free, open-source AI models. We used two of them:
+**Safety net:** if any AI service is busy or unavailable, the app shows a simple preview image or built-in suggestions with a small notice. The page never breaks.
 
-- **IDM-VTON** for tops and shirts.
-- **OOTDiffusion** for dresses, because it can replace the whole outfit and not just the top half.
-
-The app talks to these models over the internet with a small helper tool (`@gradio/client`).
-
-**Why we later switched to Google Gemini:**
-The free Hugging Face service has a small daily usage limit, and it was often busy or out of quota. So **Try On now uses Google's Gemini image model by default**. It is faster (around 10 seconds), handles both tops and dresses, and keeps your face and background the same. Hugging Face is still built in as a backup option.
-
-**Safety net:** if the AI service is busy, down or out of quota, the app does not crash. It shows a simple preview image and a small notice explaining what happened.
+**Privacy:** personalised dress recommendations appear only if the user clicks **YES**. Clicking **NO** hides them and clears the saved browsing history.
 
 ---
 
-## Step 4: The AI Stylist Feature (Scores and Styling Tips from Gemini)
+## 3. Virtual Try-On Engine (Hugging Face)
 
-Once the try-on picture is ready, the app asks **Google Gemini** to act as a personal stylist. Gemini is an AI that can look at an image and describe it in words.
+In plain English, this is how the try-on works:
 
-**What we ask Gemini:**
-"Look at this person wearing this outfit, and tell us how well it suits them and what would complete the look."
+1. **Two pictures go in.** The AI gets an *image pair*: the user's photo and a photo of the garment.
+2. **It studies the person.** The AI finds the body: where the shoulders, arms, waist and legs are, and which area the clothing should cover.
+3. **It studies the garment.** The AI learns the garment's colour, pattern, fabric and shape.
+4. **It "drapes" the garment.** The AI repaints the clothing area of the person's photo with the new garment, bending it to the body's pose and adding realistic folds, shadows and lighting.
+5. **It keeps the rest.** The face, hair, skin tone and background stay as they were.
+6. **One picture comes out.** The server crops it back to the shape of the original photo and sends it to the web page.
 
-**What Gemini sends back:**
+**Which models we used:**
 
-1. **A match score** from 0 to 100%, for example "84% Match for your athletic build and warm undertone".
-2. **Why it works**, rated on 5 points:
-   - Fit & silhouette (how the shape suits your body)
-   - Colour harmony (how the colour suits your skin tone)
-   - Colour contrast
-   - Seasonal fit (which time of year it suits)
-   - Versatility (how many occasions you could wear it to)
-3. **Complete-look suggestions**: 3 hairstyles, 3 accessories and 3 pairs of shoes, each with a one-line reason.
+- **IDM-VTON** for tops and shirts (upper-body clothing).
+- **OOTDiffusion** for dresses, because it can replace the whole outfit and not just the top.
 
-**Safety net:** if Gemini is busy, the app tries a few other Gemini versions. If none of them answer, it shows built-in suggestions instead, so the page always has something useful on it.
+The server talks to these models on Hugging Face with a small connector library called `@gradio/client`.
+
+**What changed later:** the free Hugging Face service has a small daily usage limit and is sometimes busy. So the app now uses **Google Gemini's image model as the default try-on engine** (about 10 seconds per try-on). Hugging Face remains built in as an alternative and can be switched on with one setting.
 
 ---
 
-## Step 5: Image Fixes (Why 768x1024 and Flat-Lay Photos?)
+## 4. AI Fashion Stylist (Google Gemini)
 
-AI try-on models are picky about the pictures you give them. Good input means good output, so the app tidies up every image before sending it.
+After the try-on picture is ready, Gemini acts as a personal stylist.
 
-**Why resize to 768x1024?**
+**What we send:** the try-on picture plus the product details (name, colour, fabric, category), and a request along the lines of: *"Judge how well this outfit suits this person using fashion rules, and suggest what completes the look."*
 
-- The AI models were trained on portrait pictures of exactly this shape (768 pixels wide by 1024 tall, a 3:4 ratio).
-- If a photo is a different shape, the AI may stretch it, cut off feet or heads, or produce a blurry result.
-- So the app automatically **fits your photo into a 768x1024 frame without stretching you**. It adds a little extra edge where needed.
-- After the AI finishes, the app **crops the result back to your original photo's shape**, so it looks natural.
+**How Gemini judges compatibility:** it looks at the person in the image and checks the outfit against 5 common fashion rules:
 
-**Why clean flat-lay garment photos?**
+| Factor | What it means |
+|--------|---------------|
+| **Fit & Silhouette** | Does the garment's shape flatter this body shape? |
+| **Colour Harmony** | Does the colour suit the person's skin tone? |
+| **Colour Contrast** | Does it stand out nicely against hair, skin and background? |
+| **Seasonal Compatibility** | Which season or weather does it suit? |
+| **Style Versatility** | How many occasions could it be worn to? |
 
-- A *flat-lay* photo shows the garment on its own, laid flat or on a plain white background, with no model wearing it.
-- If the garment photo includes a model with a scarf, handbag or jewellery, the AI may copy those extras onto you too. We saw this happen in testing.
-- A clean white background tells the AI exactly which part is the clothing.
-- The app also **trims empty space around the garment, centres it and pads it with white** to the same 768x1024 size.
+**The match score:** each factor gets a rating, and these combine into one overall score, for example **"84% Match for your athletic build and warm undertone"**. Each factor also gets a one-sentence reason.
 
-**Result:** cleaner, more realistic try-on pictures with fewer strange mistakes.
+**Complete-look suggestions:** Gemini then recommends:
+
+- **3 hairstyles** (for example, Sleek Low Bun)
+- **3 accessories** (for example, Gold Drop Earrings)
+- **3 footwear options** (for example, Gold Strappy Sandals)
+
+Each one comes with a short reason it works with this outfit.
+
+**Reliability:** Gemini replies in a fixed, structured format so the app can read it reliably. If one Gemini version is busy, the app tries another. If none respond, it uses built-in suggestions.
+
+---
+
+## 5. Critical Image Optimizations for AI Accuracy
+
+AI try-on models are picky: **good input gives good output**. So before anything goes to the AI, the server automatically prepares both images. We call this *preprocessing*.
+
+### Why 768x1024 and a 3:4 shape?
+
+- The try-on models were **trained on portrait images of exactly 768 x 1024 pixels** (a 3:4 width-to-height ratio).
+- A photo of a different size or shape gets squashed or stretched to fit, which causes **blurriness, distorted bodies or cut-off heads and feet**.
+- So the server **fits every user photo into a 768x1024 portrait frame without stretching the person**. It adds a little extra edge around the photo instead of squashing it.
+- Once the AI finishes, the server **crops the result back to the original photo's shape**, so the final picture looks natural.
+
+### Why centre the garment?
+
+- The server **trims empty space around the garment**, **centres it** and gives it a small margin on a 768x1024 canvas.
+- That way the AI always sees the garment at a consistent size and position, so it is less likely to misread the clothing's shape or proportions.
+
+### Why flat-lay dress images on plain white backgrounds?
+
+- A **flat-lay** image shows only the garment, with no model, laid out or photographed on a **plain white background**.
+- With a busy background or a model wearing scarves, bags or jewellery, the AI may **copy those extras onto the user**. We saw this happen in testing.
+- A clean white background makes it obvious **which part is the clothing**, so the AI copies the garment accurately.
+- Any see-through (transparent) areas in product images are filled with white for the same reason.
+
+**Result:** sharper, more realistic try-on images, with fewer distortions and fewer odd mistakes.
 
 ---
 
 ## In One Sentence
 
-FitStyle AI is a stylish online shop where AI puts the clothes on your own photo, scores how well they suit you, suggests hair, accessories and shoes, and only gives personal recommendations when you agree.
+FitStyle AI is a React and Express clothing shop, hosted on Vercel, where AI (Hugging Face models or Google Gemini) puts outfits onto the user's own photo, and Gemini scores the fit and suggests hairstyles, accessories and shoes. Careful image preparation keeps the results sharp and realistic.
