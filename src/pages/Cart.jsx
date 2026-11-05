@@ -6,28 +6,52 @@ import { useCatalog } from '../context/CatalogContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import ProductImage from '../components/ProductImage.jsx';
 import CheckoutModal from '../components/CheckoutModal.jsx';
+import DeliveryChecker from '../components/DeliveryChecker.jsx';
+import { FREE_DELIVERY_OVER, priceOrder } from '../../shared/checkout.js';
+import { api } from '../lib/api.js';
 import { useStore } from '../context/StoreContext.jsx';
 
-const FREE_SHIPPING = 150;
-const TAX_RATE = 0.08;
 
 export default function Cart() {
   const { products: PRODUCTS, getProduct } = useCatalog();
   const { cart, setQty, removeFromCart, clearCart, subtotal, toggleWishlist, isWishlisted, notify } = useStore();
-  const { requireAuth } = useAuth();
+  const { requireAuth, user, setWallet } = useAuth();
   const [checkout, setCheckout] = useState(false);
-  const [total, setTotal] = useState(0);
+  const [codeInput, setCodeInput] = useState('');
+  const [discount, setDiscount] = useState(null);
+  const [codeError, setCodeError] = useState('');
+  const [useWallet, setUseWallet] = useState(true);
+  const wallet = user?.wallet ?? 0;
+  const lines = cart.map((i) => ({ price: getProduct(i.id)?.price ?? 0, qty: i.qty }));
+  const totals = priceOrder({ lines, percent: discount?.percent || 0, wallet, useWallet: Boolean(user) && useWallet });
+  const applyCode = async (e) => {
+    e.preventDefault();
+    setCodeError('');
+    try {
+      setDiscount(await api.validateCode(codeInput));
+    } catch (err) {
+      setDiscount(null);
+      setCodeError(err.message);
+    }
+  };
 
-  const shipping = subtotal === 0 || subtotal >= FREE_SHIPPING ? 0 : 12;
-  const tax = subtotal * TAX_RATE;
-  const grand = subtotal + shipping + tax;
 
   const modal = (
     <CheckoutModal
       open={checkout}
-      total={total}
+      items={cart}
+      lines={lines}
+      discount={discount}
+      wallet={wallet}
+      initialUseWallet={useWallet && wallet > 0}
+      pincode={localStorage.getItem('fitstyle:pincode') || ''}
+      user={user}
       onClose={() => setCheckout(false)}
-      onComplete={() => clearCart()}
+      onComplete={(res) => {
+        setWallet(res.user.wallet);
+        setDiscount(null);
+        clearCart();
+      }}
     />
   );
 
@@ -91,14 +115,29 @@ export default function Cart() {
             <h2 className="text-xl font-semibold">Order summary</h2>
             <dl className="mt-5 space-y-3 text-sm">
               <div className="flex justify-between"><dt className="text-ink/60">Subtotal</dt><dd data-testid="subtotal">{formatPrice(subtotal)}</dd></div>
-              <div className="flex justify-between"><dt className="text-ink/60">Shipping</dt><dd>{shipping ? formatPrice(shipping) : 'Free'}</dd></div>
-              <div className="flex justify-between"><dt className="text-ink/60">Estimated tax</dt><dd>{formatPrice(tax)}</dd></div>
-              <div className="flex justify-between border-t border-ink/10 pt-3 text-base font-semibold"><dt>Total</dt><dd data-testid="grand-total">{formatPrice(grand)}</dd></div>
+              {totals.discount > 0 && <div className="flex justify-between text-emerald-700"><dt>Discount ({discount.code} · {discount.percent}%)</dt><dd data-testid="discount">−{formatPrice(totals.discount)}</dd></div>}
+              <div className="flex justify-between"><dt className="text-ink/60">Delivery</dt><dd data-testid="delivery-fee">{totals.delivery ? formatPrice(totals.delivery) : 'Free'}</dd></div>
+              <div className="flex justify-between"><dt className="text-ink/60">Estimated tax</dt><dd>{formatPrice(totals.tax)}</dd></div>
+              <div className="flex justify-between border-t border-ink/10 pt-3 text-base font-semibold"><dt>Total</dt><dd data-testid="grand-total">{formatPrice(totals.total)}</dd></div>
+              {totals.walletApplied > 0 && <div className="flex justify-between text-emerald-700"><dt>FitStyle Wallet</dt><dd data-testid="wallet-applied">−{formatPrice(totals.walletApplied)}</dd></div>}
+              {totals.walletApplied > 0 && <div className="flex justify-between font-semibold"><dt>To pay</dt><dd data-testid="payable">{formatPrice(totals.payable)}</dd></div>}
             </dl>
-            {shipping > 0 && (
-              <p className="mt-4 flex items-center gap-2 rounded-xl bg-cream p-3 text-xs text-ink/60"><Truck size={14} />Add {formatPrice(FREE_SHIPPING - subtotal)} more for free shipping</p>
+            {totals.delivery > 0 && (
+              <p className="mt-4 flex items-center gap-2 rounded-xl bg-cream p-3 text-xs text-ink/60"><Truck size={14} />Add {formatPrice(FREE_DELIVERY_OVER - subtotal + totals.discount)} more for free delivery</p>
             )}
-            <button onClick={() => requireAuth(() => { setTotal(grand); setCheckout(true); }, 'Log in or sign up to check out.')} className="btn-primary mt-6 w-full py-4" data-testid="checkout">Checkout</button>
+            <form onSubmit={applyCode} className="mt-4 flex gap-2">
+              <input value={codeInput} onChange={(e) => setCodeInput(e.target.value.toUpperCase())} placeholder="Discount code" aria-label="Discount code" className="input py-2" data-testid="code-input" />
+              <button className="btn-ghost px-4 py-2 text-sm" data-testid="apply-code">Apply</button>
+            </form>
+            {codeError && <p className="mt-1 text-xs text-red-600" data-testid="code-error">{codeError}</p>}
+            {user && (
+              <label className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-ink/10 p-3 text-sm">
+                <span>Use FitStyle Wallet <span className="text-ink/50">({formatPrice(wallet)})</span></span>
+                <input type="checkbox" checked={useWallet} disabled={wallet <= 0} onChange={(e) => setUseWallet(e.target.checked)} data-testid="cart-use-wallet" className="h-4 w-4 accent-[#b8954a]" />
+              </label>
+            )}
+            <DeliveryChecker className="mt-4" />
+            <button onClick={() => requireAuth(() => setCheckout(true), 'Log in or sign up to check out.')} className="btn-primary mt-6 w-full py-4" data-testid="checkout">Checkout</button>
             <Link to="/shop" className="btn-ghost mt-2 w-full">Continue shopping</Link>
           </aside>
         </div>

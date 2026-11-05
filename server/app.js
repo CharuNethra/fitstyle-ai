@@ -9,6 +9,8 @@ import { createStore } from './store.js';
 import { listProducts, findProduct } from './catalog.js';
 import { authenticate, authRoutes, requireUser } from './routes/auth.js';
 import { adminRoutes } from './routes/admin.js';
+import { orderRoutes } from './routes/orders.js';
+import { checkPincode } from '../shared/checkout.js';
 import { INTIMATES_MESSAGE, isIntimate } from '../shared/taxonomy.js';
 import { normalizePhoto, dataUrlToBuffer } from './services/imageUtils.js';
 import { runLayerTryOn, runTryOn } from './services/tryOn.js';
@@ -49,6 +51,8 @@ export function createApp(config, store = createStore(config.dataFile)) {
   app.use('/api', authenticate(store, config));
   app.use('/api', authRoutes(store, config));
   app.use('/api', adminRoutes(store));
+  app.use('/api', orderRoutes(store));
+  app.get('/api/delivery/:pincode', (req, res) => res.json(checkPincode(req.params.pincode)));
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, providers: { tryOn: config.tryOnProvider, vision: config.visionProvider } });

@@ -101,3 +101,39 @@ test('cross-category pairings and optional layered try-on', async () => {
   assert.equal(res.body.provider, 'mock');
   await request(app).post('/api/try-on/layer').set('Authorization', auth).send({ productId: 'noir-modal-briefs', image }).expect(403);
 });
+
+test('delivery check, quotes and checkout with wallet, codes and payment methods', async () => {
+  const ok = await request(app).get('/api/delivery/600001').expect(200);
+  assert.equal(ok.body.message, 'Delivering to 600001 in 2-3 business days');
+  assert.equal((await request(app).get('/api/delivery/12345').expect(200)).body.ok, false);
+  assert.equal((await request(app).get('/api/delivery/900001').expect(200)).body.ok, false);
+
+  const admin = await request(app).post('/api/admin/login').send({ email: 'admin@fitstyle.ai', password: 'admin123' }).expect(200);
+  await request(app).post('/api/admin/offers/codes').set('Authorization', `Bearer ${admin.body.token}`).send({ code: 'SAVE10', percent: 10 }).expect(201);
+
+  const user = await request(app).post('/api/auth/signup').send({ name: 'Buyer', email: 'buyer@example.com', password: 'secret1' }).expect(201);
+  const auth = `Bearer ${user.body.token}`;
+  const items = [{ id: 'scarlet-block-heels', qty: 1, size: '7' }];
+  await request(app).post('/api/orders/quote').send({ items }).expect(401);
+  const q = await request(app).post('/api/orders/quote').set('Authorization', auth).send({ items, code: 'save10', useWallet: true }).expect(200);
+  assert.deepEqual(q.body.totals, { subtotal: 120, discount: 12, delivery: 12, tax: 8.64, total: 128.64, walletApplied: 50, payable: 78.64 });
+
+  const address = { name: 'Buyer', phone: '9876543210', line: '1 Anna Salai', city: 'Chennai' };
+  const base = { items, code: 'SAVE10', useWallet: true, pincode: '600001', address };
+  await request(app).post('/api/orders').set('Authorization', auth).send({ ...base, paymentMethod: 'wallet' }).expect(400);
+  await request(app).post('/api/orders').set('Authorization', auth).send({ ...base, pincode: '900001', paymentMethod: 'cod' }).expect(400);
+  await request(app).post('/api/orders').set('Authorization', auth).send({ ...base, paymentMethod: 'upi', upiApp: 'PhonePe', upiId: 'bad' }).expect(400);
+  const placed = await request(app).post('/api/orders').set('Authorization', auth).send({ ...base, paymentMethod: 'upi', upiApp: 'PhonePe', upiId: 'buyer@ybl' }).expect(201);
+  assert.equal(placed.body.user.wallet, 0);
+  assert.equal(placed.body.order.payment.app, 'PhonePe');
+  assert.equal(placed.body.order.total, 128.64);
+
+  const cod = await request(app).post('/api/orders').set('Authorization', auth).send({ items, pincode: '560001', address, paymentMethod: 'cod' }).expect(201);
+  assert.equal(cod.body.order.payment.status, 'Pay on delivery');
+  const mine = await request(app).get('/api/orders').set('Authorization', auth).expect(200);
+  assert.equal(mine.body.orders.length, 2);
+  const stock = (await request(app).get('/api/products/scarlet-block-heels')).body.product.stock;
+  assert.equal(stock, 23);
+  const stats = await request(app).get('/api/admin/stats').set('Authorization', `Bearer ${admin.body.token}`).expect(200);
+  assert.ok(stats.body.orders >= 2);
+});

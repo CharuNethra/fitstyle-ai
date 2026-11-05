@@ -6,6 +6,7 @@ import { useCatalog } from '../context/CatalogContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import ProductImage from '../components/ProductImage.jsx';
 import SafetyNotice from '../components/SafetyNotice.jsx';
+import DeliveryChecker from '../components/DeliveryChecker.jsx';
 import { isIntimate } from '../../shared/taxonomy.js';
 import { pairingsFor } from '../../shared/pairing.js';
 import ProductCard from '../components/ProductCard.jsx';
@@ -104,7 +105,8 @@ export default function ProductDetail() {
             <div className="flex gap-3"><Sun size={18} className="text-gold-dark" /><div><dt className="font-semibold">Seasons</dt><dd className="capitalize text-ink/60">{product.seasons.join(', ')}</dd></div></div>
             <div className="flex gap-3"><Palette size={18} className="text-gold-dark" /><div><dt className="font-semibold">Palette</dt><dd className="capitalize text-ink/60">{product.palette} · {product.style}</dd></div></div>
           </dl>
-          <p className="mt-6 flex items-center gap-2 text-xs text-ink/50"><Truck size={14} />Free delivery over $150 · Free 30-day returns</p>
+          <DeliveryChecker className="mt-6" />
+          <p className="mt-3 flex items-center gap-2 text-xs text-ink/50"><Truck size={14} />Free delivery over $150 · Free 30-day returns</p>
         </div>
       </div>
 

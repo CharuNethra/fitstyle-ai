@@ -61,11 +61,10 @@ export default function Shop() {
   }
 
   const update = (patch) => {
-    setParams((prev) => {
-      const next = new URLSearchParams(prev);
-      Object.entries(patch).forEach(([k, v]) => (v ? next.set(k, v) : next.delete(k)));
-      return next;
-    });
+    // Read the live URL so rapid successive clicks never apply a stale filter set.
+    const next = new URLSearchParams(window.location.search);
+    Object.entries(patch).forEach(([k, v]) => (v ? next.set(k, v) : next.delete(k)));
+    setParams(next);
   };
 
   const products = useMemo(

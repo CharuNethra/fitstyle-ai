@@ -78,6 +78,10 @@ export const api = {
   login: (data) => postJson('/api/auth/login', data),
   logout: () => postJson('/api/auth/logout', {}),
   me: () => send('GET', '/api/auth/me'),
+  delivery: (pincode) => send('GET', `/api/delivery/${encodeURIComponent(pincode)}`),
+  quote: (data) => postJson('/api/orders/quote', data),
+  placeOrder: (data) => postJson('/api/orders', data),
+  orders: () => send('GET', '/api/orders'),
   admin: {
     login: (data) => postJson('/api/admin/login', data),
     logout: () => admin.post('/api/auth/logout', {}),
