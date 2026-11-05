@@ -14,8 +14,8 @@ export default function Footer() {
         <div>
           <h4 className="mb-3 font-sans text-sm font-semibold">Shop</h4>
           <ul className="space-y-2 text-sm text-ink/60">
-            {['Dresses', 'Tops', 'Outerwear', 'Casual', 'Formal'].map((c) => (
-              <li key={c}><Link className="hover:text-ink" to={`/shop?category=${c}`}>{c}</Link></li>
+            {[['Women', 'audience=Women'], ['Men', 'audience=Men'], ['Kids', 'audience=Kids'], ['Footwear', 'category=Footwear'], ['Accessories', 'category=Accessories']].map(([label, q]) => (
+              <li key={label}><Link className="hover:text-ink" to={`/shop?${q}`}>{label}</Link></li>
             ))}
           </ul>
         </div>

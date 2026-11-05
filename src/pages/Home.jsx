@@ -12,11 +12,11 @@ const FEATURES = [
 ];
 
 const CATEGORY_TILES = [
-  { name: 'Dresses', product: 'scarlet-cocktail' },
-  { name: 'Tops', product: 'starlight-print-shirt' },
-  { name: 'Outerwear', product: 'sand-three-piece-suit' },
-  { name: 'Casual', product: 'riviera-stripe-sundress' },
-  { name: 'Formal', product: 'crimson-satin-ballgown' },
+  { name: 'Women', query: 'audience=Women', product: 'scarlet-cocktail' },
+  { name: 'Men', query: 'audience=Men', product: 'sand-three-piece-suit' },
+  { name: 'Kids', query: 'audience=Kids', product: 'kids-tulle-party-frock' },
+  { name: 'Footwear', query: 'category=Footwear', product: 'gilded-stiletto-pumps' },
+  { name: 'Accessories', query: 'category=Accessories', product: 'gold-chain-clutch' },
 ];
 
 export default function Home() {
@@ -69,8 +69,8 @@ export default function Home() {
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {CATEGORY_TILES.map((c) => (
-            <Link key={c.name} to={`/shop?category=${c.name}`} className="group relative">
-              <ProductImage product={byId[c.product]} className="aspect-square rounded-3xl" />
+            <Link key={c.name} to={`/shop?${c.query}`} className="group relative">
+              <ProductImage product={byId[c.product] || PRODUCTS[0]} className="aspect-square rounded-3xl" />
               <span className="absolute inset-x-3 bottom-3 rounded-full bg-white/95 py-2 text-center text-sm font-semibold shadow-sm transition group-hover:bg-ink group-hover:text-white">
                 {c.name}
               </span>

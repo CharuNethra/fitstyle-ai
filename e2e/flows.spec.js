@@ -36,14 +36,30 @@ test('catalog filtering and search', async ({ page }) => {
   await page.goto('/shop');
   const all = await page.getByTestId('product-card').count();
   expect(all).toBeGreaterThanOrEqual(20);
-  for (const cat of ['Dresses', 'Tops', 'Outerwear', 'Casual', 'Formal']) {
-    await page.getByRole('tab', { name: cat }).click();
-    await expect(page).toHaveURL(new RegExp(`category=${cat}`));
-    const n = await page.getByTestId('product-card').count();
+  const count = () => page.getByTestId('product-card').count();
+  for (const aud of ['Women', 'Men', 'Kids']) {
+    await page.getByTestId('tier-audience').getByRole('tab', { name: aud, exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`audience=${aud}`));
+    const n = await count();
     expect(n).toBeGreaterThan(0);
     expect(n).toBeLessThan(all);
   }
-  await page.getByRole('tab', { name: 'Dresses' }).click();
+  await page.getByTestId('tier-audience').getByRole('tab', { name: 'All' }).click();
+  for (const cat of ['Footwear', 'Accessories', 'Dresses']) {
+    await page.getByTestId('tier-category').getByRole('tab', { name: cat, exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`category=${cat}`));
+    expect(await count()).toBeLessThan(all);
+  }
+  const styleTier = page.getByTestId('tier-style');
+  for (const style of ['Bridal', 'Ethnic', 'Casual', 'Party', 'Groom', 'Office', 'Beachy', 'Intimates / Innerwear']) {
+    await styleTier.getByRole('tab', { name: style, exact: true }).click();
+    await expect.poll(count, { message: style }).toBeGreaterThan(0);
+  }
+  await styleTier.getByRole('tab', { name: 'Ethnic', exact: true }).click();
+  await page.getByTestId('tier-audience').getByRole('tab', { name: 'Men', exact: true }).click();
+  await expect(page.getByTestId('shop-title')).toHaveText('Men · Dresses · Ethnic');
+  await expect(page.locator('[data-product-id="ivory-chikankari-kurta"]')).toBeVisible();
+  await expect(page.locator('[data-product-id="ruby-silk-saree"]')).toHaveCount(0);
   await shot(page, '02-shop-dresses');
 
   await page.getByTestId('header-search').fill('satin');

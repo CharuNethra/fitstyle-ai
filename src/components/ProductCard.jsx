@@ -15,6 +15,9 @@ export default function ProductCard({ product, badge, note }) {
         <Link to={`/product/${product.id}`}>
           <ProductImage product={product} className="aspect-[3/4] rounded-3xl" />
         </Link>
+        {product.saleTag && !badge && (
+          <span className="absolute left-3 top-3 rounded-full bg-gold px-3 py-1 text-xs font-bold text-white" data-testid="sale-tag">{product.saleTag}</span>
+        )}
         {badge && (
           <span className="absolute left-3 top-3 rounded-full bg-ink/85 px-3 py-1 text-xs font-semibold text-white backdrop-blur">{badge}</span>
         )}
@@ -39,7 +42,7 @@ export default function ProductCard({ product, badge, note }) {
       <div className="mt-3 flex items-start justify-between gap-3 px-1">
         <div>
           <Link to={`/product/${product.id}`} className="font-medium leading-snug hover:text-gold-dark">{product.name}</Link>
-          <p className="mt-0.5 text-xs text-ink/50">{product.colorName} · {product.categories.join(' / ')}</p>
+          <p className="mt-0.5 text-xs text-ink/50">{[product.audience, product.subCategory].filter(Boolean).join(' · ') || product.colorName}</p>
         </div>
         <div className="text-right">
           <p className="font-semibold">{formatPrice(product.price)}</p>

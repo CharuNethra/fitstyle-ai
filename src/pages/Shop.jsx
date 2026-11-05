@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
-import { CATEGORIES } from '../../shared/products.js';
+import { AUDIENCES, PRODUCT_CATEGORIES, SUBCATEGORIES } from '../../shared/taxonomy.js';
 import { useCatalog } from '../context/CatalogContext.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import { useStore } from '../context/StoreContext.jsx';
@@ -14,15 +14,41 @@ const SORTS = {
 };
 
 function matches(p, q) {
-  const hay = [p.name, p.colorName, p.type, p.style, p.fabric, p.pattern, ...p.categories].join(' ').toLowerCase();
+  const hay = [p.name, p.colorName, p.type, p.style, p.fabric, p.pattern, p.audience, p.subCategory, ...(p.categories || [])].join(' ').toLowerCase();
   return q.toLowerCase().split(/\s+/).filter(Boolean).every((t) => hay.includes(t));
+}
+
+function FilterRow({ label, options, value, onChange, testId, small = false }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-20 shrink-0 text-[11px] font-semibold uppercase tracking-widest text-ink/40">{label}</span>
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="tablist" aria-label={label} data-testid={testId}>
+        {options.map((o) => (
+          <button
+            key={o}
+            role="tab"
+            aria-selected={o === value}
+            onClick={() => onChange(o)}
+            className={`shrink-0 whitespace-nowrap rounded-full font-medium transition ${small ? 'px-4 py-1.5 text-xs' : 'px-5 py-2 text-sm'} ${
+              o === value ? 'bg-ink text-white' : 'border border-ink/10 bg-white text-ink/70 hover:border-ink/40'
+            }`}
+          >
+            {o}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function Shop() {
   const { products: PRODUCTS } = useCatalog();
   const [params, setParams] = useSearchParams();
   const { recordSearch } = useStore();
-  const category = CATEGORIES.includes(params.get('category')) ? params.get('category') : 'All';
+  const audience = AUDIENCES.includes(params.get('audience')) ? params.get('audience') : 'All';
+  const category = PRODUCT_CATEGORIES.includes(params.get('category')) ? params.get('category') : 'All';
+  const styles = category === 'All' ? [] : SUBCATEGORIES[category];
+  const style = styles.includes(params.get('style')) ? params.get('style') : 'All';
   const q = params.get('q') || '';
   const sort = SORTS[params.get('sort')] ? params.get('sort') : 'featured';
   const [draft, setDraft] = useState(q);
@@ -39,10 +65,12 @@ export default function Shop() {
   };
 
   const products = useMemo(
-    () => PRODUCTS.filter((p) => category === 'All' || p.categories.includes(category))
+    () => PRODUCTS.filter((p) => (audience === 'All' || p.audience === audience)
+      && (category === 'All' || p.category === category)
+      && (style === 'All' || p.subCategory === style))
       .filter((p) => !q || matches(p, q))
       .sort(SORTS[sort].fn),
-    [PRODUCTS, category, q, sort],
+    [PRODUCTS, audience, category, style, q, sort],
   );
 
   const submit = (e) => {
@@ -54,23 +82,17 @@ export default function Shop() {
   return (
     <div className="container-luxe py-12">
       <p className="eyebrow">The collection</p>
-      <h1 className="mt-2 text-4xl font-semibold">{category === 'All' ? 'Shop all' : category}</h1>
+      <h1 className="mt-2 text-4xl font-semibold" data-testid="shop-title">
+        {[audience, category, style].filter((x) => x !== 'All').join(' · ') || 'Shop all'}
+      </h1>
 
-      <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Categories">
-          {CATEGORIES.map((c) => (
-            <button
-              key={c}
-              role="tab"
-              aria-selected={c === category}
-              onClick={() => update({ category: c === 'All' ? '' : c })}
-              className={`rounded-full px-5 py-2 text-sm font-medium transition ${
-                c === category ? 'bg-ink text-white' : 'border border-ink/10 bg-white text-ink/70 hover:border-ink/40'
-              }`}
-            >
-              {c}
-            </button>
-          ))}
+      <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-3" data-testid="filter-tree">
+          <FilterRow label="Audience" testId="tier-audience" options={['All', ...AUDIENCES]} value={audience} onChange={(v) => update({ audience: v === 'All' ? '' : v })} />
+          <FilterRow label="Category" testId="tier-category" options={['All', ...PRODUCT_CATEGORIES]} value={category} onChange={(v) => update({ category: v === 'All' ? '' : v, style: '' })} />
+          {styles.length > 0 && (
+            <FilterRow label={category === 'Dresses' ? 'Style' : 'Type'} testId="tier-style" options={['All', ...styles]} value={style} onChange={(v) => update({ style: v === 'All' ? '' : v })} small />
+          )}
         </div>
         <div className="flex gap-3">
           <form onSubmit={submit} className="relative flex-1 lg:w-72" role="search">

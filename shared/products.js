@@ -1,14 +1,51 @@
-export const CATEGORIES = ['All', 'Dresses', 'Tops', 'Outerwear', 'Casual', 'Formal'];
+export const CATEGORIES = ['All', 'Dresses', 'Footwear', 'Accessories'];
 
 const p = (o) => ({
   sizes: ['XS', 'S', 'M', 'L', 'XL'],
   rating: 4.6,
   reviews: 120,
   pattern: 'solid',
+  stock: 25,
+  category: 'Dresses',
   ...o,
 });
 
-export const PRODUCTS = [
+const ALL_SEASONS = ['spring', 'summer', 'autumn', 'winter'];
+const KIDS_SIZES = ['2-3Y', '4-5Y', '6-7Y', '8-9Y'];
+const SHOE_SIZES = ['5', '6', '7', '8', '9', '10'];
+const ONE_SIZE = ['One size'];
+
+// Audience + style for the original apparel catalogue (Audience → Category → Style tree).
+const APPAREL_TAXONOMY = {
+  'crimson-satin-ballgown': ['Women', 'Bridal'],
+  'starlight-print-shirt': ['Men', 'Party'],
+  'sand-three-piece-suit': ['Men', 'Groom'],
+  'dusty-rose-three-piece-suit': ['Men', 'Groom'],
+  'aurelia-satin-slip': ['Women', 'Party'],
+  'noir-column-gown': ['Women', 'Party'],
+  'emerald-wrap-midi': ['Women', 'Office'],
+  'riviera-stripe-sundress': ['Women', 'Beachy'],
+  'marigold-floral-midi': ['Women', 'Casual'],
+  'blush-tulle-gown': ['Women', 'Bridal'],
+  'scarlet-cocktail': ['Women', 'Party'],
+  'sage-linen-day': ['Women', 'Casual'],
+  'ivory-silk-blouse': ['Women', 'Office'],
+  'breton-stripe-tee': ['Men', 'Casual'],
+  'coral-puff-top': ['Women', 'Beachy'],
+  'lavender-knit': ['Women', 'Casual'],
+  'onyx-bodysuit-top': ['Women', 'Party'],
+  'camel-wool-coat': ['Women', 'Office'],
+  'classic-trench': ['Women', 'Office'],
+  'black-tux-blazer': ['Men', 'Party'],
+  'denim-jacket': ['Men', 'Casual'],
+  'cream-tweed-blazer': ['Women', 'Office'],
+  'olive-utility-jacket': ['Men', 'Casual'],
+  'cobalt-satin-midi': ['Women', 'Party'],
+  'terracotta-maxi': ['Women', 'Beachy'],
+  'mint-ribbed-knit': ['Women', 'Casual'],
+};
+
+const BASE_PRODUCTS = [
   p({ id: 'crimson-satin-ballgown', name: 'Crimson Satin Ball Gown', price: 560, type: 'gown', categories: ['Dresses', 'Formal'], color: '#9E1B2B', colorName: 'Crimson', palette: 'warm', style: 'evening', seasons: ['autumn', 'winter'], fabric: 'Duchess satin with beaded lace', rating: 4.9, reviews: 57, image: '/images/products/crimson-satin-ballgown.jpg', imageFit: 'contain', imageBg: '#ffffff', description: 'A dramatic off-the-shoulder satin ball gown with a sweeping train and beaded floral lace bodice.' }),
   p({ id: 'starlight-print-shirt', name: 'Starlight Print Shirt', price: 85, type: 'top', categories: ['Tops', 'Casual'], color: '#141414', colorName: 'Black Star Print', palette: 'neutral', style: 'evening', seasons: ['spring', 'autumn', 'winter'], fabric: 'Stretch cotton poplin', rating: 4.5, reviews: 189, image: '/images/products/starlight-print-shirt.jpg', imageFit: 'cover', description: 'A slim-fit black shirt scattered with a silver star print — a statement piece for evenings out.' }),
   p({ id: 'sand-three-piece-suit', name: 'Sand Three-Piece Suit', price: 480, type: 'blazer', categories: ['Outerwear', 'Formal'], color: '#D2C3A8', colorName: 'Sand Beige', palette: 'neutral', style: 'work', seasons: ['spring', 'summer', 'autumn'], fabric: 'Wool-blend suiting', rating: 4.8, reviews: 112, image: '/images/products/sand-three-piece-suit.jpg', imageFit: 'cover', tryOnCategory: 'auto', sizes: ['36', '38', '40', '42', '44'], description: 'A tailored sand-beige suit with notch-lapel jacket, waistcoat and slim trousers — sharp for weddings and the office.' }),
@@ -36,6 +73,51 @@ export const PRODUCTS = [
   p({ id: 'terracotta-maxi', name: 'Terracotta Maxi Dress', price: 145, type: 'gown', categories: ['Dresses', 'Casual'], color: '#C4623A', colorName: 'Terracotta', palette: 'warm', style: 'boho', seasons: ['summer', 'autumn'], fabric: 'Crinkle cotton', rating: 4.5, reviews: 158, description: 'Flowing terracotta maxi with a tiered skirt — effortless bohemian ease.' }),
   p({ id: 'mint-ribbed-knit', name: 'Mint Ribbed Knit Top', price: 64, type: 'knit', categories: ['Tops', 'Casual'], color: '#A8D5BA', colorName: 'Mint', palette: 'cool', pattern: 'stripes', style: 'casual', seasons: ['spring', 'autumn'], fabric: 'Ribbed cotton-blend', rating: 4.3, reviews: 91, description: 'Fresh mint ribbed knit with a cropped, flattering fit.' }),
 ];
+
+const NEW_PRODUCTS = [
+  // Ethnic, bridal & groom
+  p({ id: 'ruby-silk-saree', name: 'Ruby Banarasi Silk Saree', price: 240, type: 'gown', audience: 'Women', subCategory: 'Ethnic', color: '#9B1B30', colorName: 'Ruby', palette: 'warm', pattern: 'dots', style: 'evening', seasons: ALL_SEASONS, fabric: 'Banarasi silk with zari buttis', rating: 4.8, reviews: 143, sizes: ONE_SIZE, description: 'A handwoven ruby Banarasi saree with gold zari buttis and a rich pallu, made for festivals and weddings.' }),
+  p({ id: 'emerald-anarkali', name: 'Emerald Georgette Anarkali', price: 210, type: 'gown', audience: 'Women', subCategory: 'Ethnic', color: '#0F6B4F', colorName: 'Emerald', palette: 'cool', style: 'evening', seasons: ALL_SEASONS, fabric: 'Georgette with gota work', rating: 4.7, reviews: 96, description: 'A floor-sweeping emerald Anarkali with gota-patti borders and a sheer dupatta.' }),
+  p({ id: 'pastel-bridal-lehenga', name: 'Rose Pastel Bridal Lehenga', price: 680, type: 'gown', audience: 'Women', subCategory: 'Bridal', color: '#E8B4C0', colorName: 'Rose Pastel', palette: 'warm', pattern: 'dots', style: 'evening', seasons: ALL_SEASONS, fabric: 'Raw silk with sequin embroidery', rating: 4.9, reviews: 41, description: 'A pastel-rose bridal lehenga with hand-sequinned florals and a scalloped net dupatta.' }),
+  p({ id: 'ivory-chikankari-kurta', name: 'Ivory Chikankari Kurta', price: 145, type: 'kurta', audience: 'Men', subCategory: 'Ethnic', color: '#F1E9D8', colorName: 'Ivory', palette: 'neutral', style: 'casual', seasons: ['spring', 'summer', 'autumn'], fabric: 'Cotton mul with chikankari', rating: 4.6, reviews: 118, sizes: ['S', 'M', 'L', 'XL', 'XXL'], description: 'A breezy ivory kurta with Lucknowi chikankari embroidery — festive yet relaxed.' }),
+  p({ id: 'gold-brocade-sherwani', name: 'Gold Brocade Sherwani', price: 520, type: 'kurta', audience: 'Men', subCategory: 'Groom', color: '#C9A45C', colorName: 'Antique Gold', palette: 'warm', pattern: 'dots', style: 'evening', seasons: ALL_SEASONS, fabric: 'Silk brocade', rating: 4.9, reviews: 52, sizes: ['36', '38', '40', '42', '44'], description: 'A regal antique-gold brocade sherwani with a mandarin collar, made for the groom.' }),
+  // Kids
+  p({ id: 'kids-tulle-party-frock', name: 'Kids Blush Tulle Party Frock', price: 58, type: 'dress', audience: 'Kids', subCategory: 'Party', color: '#F4B6C2', colorName: 'Blush', palette: 'warm', style: 'evening', seasons: ['spring', 'summer'], fabric: 'Layered tulle', rating: 4.8, reviews: 87, sizes: KIDS_SIZES, description: 'A twirl-ready blush tulle frock with a satin bow for birthdays and parties.' }),
+  p({ id: 'kids-sky-tee', name: 'Kids Sky Cotton Tee', price: 22, type: 'tee', audience: 'Kids', subCategory: 'Casual', color: '#7FB3D5', colorName: 'Sky Blue', palette: 'cool', style: 'casual', seasons: ['spring', 'summer', 'autumn'], fabric: 'Organic cotton jersey', rating: 4.5, reviews: 204, sizes: KIDS_SIZES, description: 'A soft organic-cotton tee in sky blue for playground days.' }),
+  p({ id: 'kids-mini-kurta', name: 'Kids Marigold Mini Kurta', price: 34, type: 'kurta', audience: 'Kids', subCategory: 'Ethnic', color: '#F2C14E', colorName: 'Marigold', palette: 'warm', style: 'casual', seasons: ALL_SEASONS, fabric: 'Cotton silk', rating: 4.7, reviews: 66, sizes: KIDS_SIZES, description: 'A festive marigold kurta for little ones, soft enough for all-day celebrations.' }),
+  p({ id: 'kids-sunny-beach-dress', name: 'Kids Sunny Beach Dress', price: 29, type: 'dress', audience: 'Kids', subCategory: 'Beachy', color: '#FFD166', colorName: 'Sunshine', palette: 'warm', pattern: 'stripes', style: 'casual', seasons: ['summer'], fabric: 'Cotton seersucker', rating: 4.6, reviews: 73, sizes: KIDS_SIZES, description: 'A cheerful striped sundress for beach holidays.' }),
+  // Intimates / Innerwear (mannequin previews only — no personal photo try-on)
+  p({ id: 'blush-lace-bralette', name: 'Blush Lace Bralette', price: 39, type: 'bra', audience: 'Women', subCategory: 'Intimates / Innerwear', color: '#E8C4C4', colorName: 'Blush', palette: 'warm', style: 'casual', seasons: ALL_SEASONS, fabric: 'Stretch lace with cotton lining', rating: 4.5, reviews: 312, sizes: ['XS', 'S', 'M', 'L'], description: 'A wire-free lace bralette with soft cotton lining for all-day comfort.' }),
+  p({ id: 'noir-modal-briefs', name: 'Noir Modal Briefs (3-pack)', price: 28, type: 'brief', audience: 'Women', subCategory: 'Intimates / Innerwear', color: '#2B2B2B', colorName: 'Noir', palette: 'neutral', style: 'casual', seasons: ALL_SEASONS, fabric: 'Micro-modal', rating: 4.6, reviews: 488, description: 'Seamless micro-modal briefs that disappear under any outfit.' }),
+  p({ id: 'mens-cotton-trunks', name: 'Men’s Cotton Stretch Trunks (3-pack)', price: 24, type: 'brief', audience: 'Men', subCategory: 'Intimates / Innerwear', color: '#34495E', colorName: 'Slate', palette: 'cool', style: 'casual', seasons: ALL_SEASONS, fabric: 'Cotton-elastane', rating: 4.5, reviews: 391, sizes: ['S', 'M', 'L', 'XL'], description: 'Breathable stretch-cotton trunks with a soft-touch waistband.' }),
+  // Footwear
+  p({ id: 'gilded-stiletto-pumps', name: 'Gilded Stiletto Pumps', price: 165, type: 'heels', category: 'Footwear', audience: 'Women', subCategory: 'Heels', color: '#C9A45C', colorName: 'Gold', palette: 'warm', style: 'evening', seasons: ALL_SEASONS, fabric: 'Metallic leather', rating: 4.7, reviews: 129, sizes: SHOE_SIZES, description: 'Pointed-toe metallic gold pumps on a slender 9 cm heel.' }),
+  p({ id: 'scarlet-block-heels', name: 'Scarlet Block Heels', price: 120, type: 'heels', category: 'Footwear', audience: 'Women', subCategory: 'Heels', color: '#B0182F', colorName: 'Scarlet', palette: 'warm', style: 'evening', seasons: ALL_SEASONS, fabric: 'Suede', rating: 4.6, reviews: 98, sizes: SHOE_SIZES, description: 'Comfortable scarlet suede block heels for long celebrations.' }),
+  p({ id: 'nude-ballet-flats', name: 'Nude Leather Ballet Flats', price: 75, type: 'loafer', category: 'Footwear', audience: 'Women', subCategory: 'Flats', color: '#E3C7A8', colorName: 'Nude', palette: 'neutral', style: 'work', seasons: ALL_SEASONS, fabric: 'Nappa leather', rating: 4.5, reviews: 260, sizes: SHOE_SIZES, description: 'Cushioned nappa ballet flats that go from desk to dinner.' }),
+  p({ id: 'embroidered-juttis', name: 'Embroidered Gold Juttis', price: 60, type: 'loafer', category: 'Footwear', audience: 'Women', subCategory: 'Flats', color: '#D4A017', colorName: 'Gold', palette: 'warm', pattern: 'dots', style: 'evening', seasons: ALL_SEASONS, fabric: 'Leather with zari embroidery', rating: 4.7, reviews: 84, sizes: SHOE_SIZES, description: 'Hand-embroidered juttis that complete sarees, lehengas and kurtas.' }),
+  p({ id: 'tan-leather-sandals', name: 'Tan Leather Strappy Sandals', price: 70, type: 'sandal', category: 'Footwear', audience: 'Women', subCategory: 'Sandals', color: '#B07A4A', colorName: 'Tan', palette: 'warm', style: 'boho', seasons: ['spring', 'summer'], fabric: 'Vegetable-tanned leather', rating: 4.4, reviews: 151, sizes: SHOE_SIZES, description: 'Minimal strappy sandals for beach days and summer brunches.' }),
+  p({ id: 'chelsea-suede-boots', name: 'Chocolate Suede Chelsea Boots', price: 210, type: 'boot', category: 'Footwear', audience: 'Women', subCategory: 'Boots', color: '#6B4F3A', colorName: 'Chocolate', palette: 'warm', style: 'work', seasons: ['autumn', 'winter'], fabric: 'Suede with rubber sole', rating: 4.8, reviews: 77, sizes: SHOE_SIZES, description: 'Classic chocolate suede Chelsea boots with elastic gussets.' }),
+  p({ id: 'cloud-white-sneakers', name: 'Cloud White Sneakers', price: 95, type: 'sneaker', category: 'Footwear', audience: 'Men', subCategory: 'Sneakers', color: '#F2F2F2', colorName: 'White', palette: 'neutral', style: 'casual', seasons: ALL_SEASONS, fabric: 'Leather with foam sole', rating: 4.7, reviews: 540, sizes: ['7', '8', '9', '10', '11'], description: 'Clean white leather sneakers that pair with everything.' }),
+  p({ id: 'oxford-brogue-shoes', name: 'Espresso Oxford Brogues', price: 180, type: 'loafer', category: 'Footwear', audience: 'Men', subCategory: 'Formal Shoes', color: '#3B2416', colorName: 'Espresso', palette: 'warm', style: 'work', seasons: ALL_SEASONS, fabric: 'Polished calf leather', rating: 4.8, reviews: 133, sizes: ['7', '8', '9', '10', '11'], description: 'Goodyear-welted brogues for suits, sherwanis and the boardroom.' }),
+  p({ id: 'kids-light-up-sneakers', name: 'Kids Light-Up Sneakers', price: 40, type: 'sneaker', category: 'Footwear', audience: 'Kids', subCategory: 'Sneakers', color: '#5DADE2', colorName: 'Blue', palette: 'cool', style: 'casual', seasons: ALL_SEASONS, fabric: 'Mesh with LED sole', rating: 4.6, reviews: 210, sizes: ['10K', '11K', '12K', '13K', '1'], description: 'Velcro sneakers with a light-up sole kids love.' }),
+  // Accessories
+  p({ id: 'gold-chain-clutch', name: 'Gold Chain Evening Clutch', price: 135, type: 'bag', category: 'Accessories', audience: 'Women', subCategory: 'Bags', color: '#D4AF37', colorName: 'Gold', palette: 'warm', style: 'evening', seasons: ALL_SEASONS, fabric: 'Metallic leather', rating: 4.7, reviews: 92, sizes: ONE_SIZE, description: 'A structured metallic clutch with a detachable gold chain.' }),
+  p({ id: 'cognac-leather-tote', name: 'Cognac Leather Tote', price: 190, type: 'bag', category: 'Accessories', audience: 'Women', subCategory: 'Bags', color: '#9A5B2E', colorName: 'Cognac', palette: 'warm', style: 'work', seasons: ALL_SEASONS, fabric: 'Full-grain leather', rating: 4.8, reviews: 166, sizes: ONE_SIZE, description: 'A roomy full-grain leather tote that fits a 14-inch laptop.' }),
+  p({ id: 'pearl-drop-necklace', name: 'Pearl Drop Necklace', price: 115, type: 'necklace', category: 'Accessories', audience: 'Women', subCategory: 'Jewellery', color: '#EDE6D6', colorName: 'Pearl', palette: 'neutral', style: 'evening', seasons: ALL_SEASONS, fabric: 'Freshwater pearls on 18k gold vermeil', rating: 4.9, reviews: 71, sizes: ONE_SIZE, description: 'A single freshwater pearl drop on a fine gold chain.' }),
+  p({ id: 'heritage-steel-watch', name: 'Heritage Steel Watch', price: 240, type: 'watch', category: 'Accessories', audience: 'Men', subCategory: 'Watches', color: '#8C8C8C', colorName: 'Steel', palette: 'cool', style: 'work', seasons: ALL_SEASONS, fabric: 'Stainless steel, sapphire glass', rating: 4.8, reviews: 118, sizes: ONE_SIZE, description: 'A 40 mm steel watch with a sunray dial and sapphire glass.' }),
+  p({ id: 'tortoise-sunglasses', name: 'Tortoiseshell Cat-Eye Sunglasses', price: 85, type: 'sunglasses', category: 'Accessories', audience: 'Women', subCategory: 'Sunglasses', color: '#6B4226', colorName: 'Tortoise', palette: 'warm', style: 'boho', seasons: ['spring', 'summer'], fabric: 'Acetate, UV400 lenses', rating: 4.6, reviews: 143, sizes: ONE_SIZE, description: 'Retro cat-eye sunglasses with UV400 protection.' }),
+  p({ id: 'aviator-sunglasses', name: 'Classic Aviator Sunglasses', price: 95, type: 'sunglasses', category: 'Accessories', audience: 'Men', subCategory: 'Sunglasses', color: '#1F2937', colorName: 'Gunmetal', palette: 'neutral', style: 'casual', seasons: ALL_SEASONS, fabric: 'Metal frame, polarised lenses', rating: 4.7, reviews: 201, sizes: ONE_SIZE, description: 'Polarised aviators with a lightweight gunmetal frame.' }),
+  p({ id: 'leather-dress-belt', name: 'Espresso Leather Dress Belt', price: 55, type: 'belt', category: 'Accessories', audience: 'Men', subCategory: 'Belts', color: '#2B1A10', colorName: 'Espresso', palette: 'warm', style: 'work', seasons: ALL_SEASONS, fabric: 'Italian leather', rating: 4.5, reviews: 98, sizes: ['30', '32', '34', '36', '38'], description: 'A slim Italian-leather belt with a brushed-gold buckle.' }),
+  p({ id: 'silk-print-scarf', name: 'Riviera Silk Print Scarf', price: 70, type: 'scarf', category: 'Accessories', audience: 'Women', subCategory: 'Scarves', color: '#2E5AAC', colorName: 'Riviera Blue', palette: 'cool', pattern: 'dots', style: 'casual', seasons: ALL_SEASONS, fabric: 'Silk twill', rating: 4.6, reviews: 64, sizes: ONE_SIZE, description: 'A hand-rolled silk twill scarf to tie at the neck, wrist or bag.' }),
+  p({ id: 'kids-star-backpack', name: 'Kids Starry Backpack', price: 30, type: 'bag', category: 'Accessories', audience: 'Kids', subCategory: 'Bags', color: '#F4A261', colorName: 'Apricot', palette: 'warm', pattern: 'dots', style: 'casual', seasons: ALL_SEASONS, fabric: 'Recycled polyester', rating: 4.7, reviews: 122, sizes: ONE_SIZE, description: 'A light, water-resistant backpack sized for little shoulders.' }),
+];
+
+const withTaxonomy = (x) => {
+  const [audience, subCategory] = APPAREL_TAXONOMY[x.id] || [x.audience, x.subCategory];
+  return { ...x, audience, subCategory, categories: [x.category, subCategory] };
+};
+
+export const PRODUCTS = [...BASE_PRODUCTS, ...NEW_PRODUCTS].map(withTaxonomy);
 
 export const getProduct = (id) => PRODUCTS.find((x) => x.id === id);
 

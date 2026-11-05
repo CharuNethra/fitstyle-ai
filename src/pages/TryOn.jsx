@@ -3,7 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import {
   Check, Download, Footprints, Gem, Heart, Info, LoaderCircle, RefreshCw, Scissors, ShoppingBag, Sparkles, WandSparkles,
 } from 'lucide-react';
-import { CATEGORIES, formatPrice } from '../../shared/products.js';
+import { formatPrice } from '../../shared/products.js';
+import { AUDIENCES } from '../../shared/taxonomy.js';
 import { useCatalog } from '../context/CatalogContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import ProductImage from '../components/ProductImage.jsx';
@@ -24,11 +25,11 @@ const PROVIDER_LABEL = { mock: 'FitStyle preview engine', huggingface: 'Hugging 
 function OutfitPicker({ selectedId, onSelect }) {
   const { products: PRODUCTS } = useCatalog();
   const [cat, setCat] = useState('All');
-  const list = PRODUCTS.filter((p) => cat === 'All' || p.categories.includes(cat));
+  const list = PRODUCTS.filter((p) => p.category === 'Dresses' && (cat === 'All' || p.audience === cat));
   return (
     <div>
       <div className="flex flex-wrap gap-2">
-        {CATEGORIES.map((c) => (
+        {['All', ...AUDIENCES].map((c) => (
           <button key={c} onClick={() => setCat(c)} className={`rounded-full px-3 py-1 text-xs font-medium ${c === cat ? 'bg-ink text-white' : 'bg-white text-ink/60 ring-1 ring-ink/10'}`}>{c}</button>
         ))}
       </div>

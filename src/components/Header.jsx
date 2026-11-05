@@ -7,8 +7,9 @@ import { useCatalog } from '../context/CatalogContext.jsx';
 import { formatPrice } from '../../shared/products.js';
 
 const NAV = [
-  { to: '/shop', label: 'Shop' },
-  { to: '/shop?category=Dresses', label: 'Dresses' },
+  { to: '/shop?audience=Women', label: 'Women' },
+  { to: '/shop?audience=Men', label: 'Men' },
+  { to: '/shop?audience=Kids', label: 'Kids' },
   { to: '/try-on', label: 'Try-On Studio' },
   { to: '/for-you', label: 'For You' },
 ];
