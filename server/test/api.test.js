@@ -9,7 +9,9 @@ import { getConfig } from '../config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const samplePhoto = fs.readFileSync(path.resolve(__dirname, '../../public/samples/sample-model.svg'));
-const app = createApp(getConfig({ TRYON_PROVIDER: 'mock' }));
+const app = createApp(getConfig({ TRYON_PROVIDER: 'mock', DATA_FILE: '' }));
+const { body: signup } = await request(app).post('/api/auth/signup').send({ name: 'Ava', email: 'ava@example.com', password: 'secret1' });
+const AUTH = `Bearer ${signup.token}`;
 
 test('health reports mock providers when no keys are configured', async () => {
   const res = await request(app).get('/api/health').expect(200);
@@ -36,7 +38,7 @@ let tryOnImage;
 
 test('try-on composites the garment onto an uploaded photo', async () => {
   const res = await request(app)
-    .post('/api/try-on')
+    .post('/api/try-on').set('Authorization', AUTH)
     .field('productId', 'emerald-wrap-midi')
     .attach('photo', samplePhoto, { filename: 'me.svg', contentType: 'image/svg+xml' })
     .expect(200);
@@ -47,19 +49,19 @@ test('try-on composites the garment onto an uploaded photo', async () => {
 });
 
 test('try-on validates input', async () => {
-  await request(app).post('/api/try-on').field('productId', 'emerald-wrap-midi').expect(400);
+  await request(app).post('/api/try-on').set('Authorization', AUTH).field('productId', 'emerald-wrap-midi').expect(400);
   await request(app)
-    .post('/api/try-on')
+    .post('/api/try-on').set('Authorization', AUTH)
     .field('productId', 'nope')
     .attach('photo', samplePhoto, { filename: 'me.svg', contentType: 'image/svg+xml' })
     .expect(404);
   await request(app)
-    .post('/api/try-on')
+    .post('/api/try-on').set('Authorization', AUTH)
     .field('productId', 'emerald-wrap-midi')
     .attach('photo', Buffer.from('hello'), { filename: 'a.txt', contentType: 'text/plain' })
     .expect(415);
   await request(app)
-    .post('/api/try-on')
+    .post('/api/try-on').set('Authorization', AUTH)
     .field('productId', 'emerald-wrap-midi')
     .attach('photo', Buffer.from('not really a png'), { filename: 'a.png', contentType: 'image/png' })
     .expect(422);

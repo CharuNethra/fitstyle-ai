@@ -9,7 +9,14 @@ const SHOTS = process.env.E2E_SCREENSHOTS;
 
 let consoleErrors;
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page, request }) => {
+  const email = `e2e-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+  const res = await request.post('/api/auth/signup', { data: { name: 'E2E Shopper', email, password: 'secret1' } });
+  const { token, user } = await res.json();
+  await page.addInitScript(([t, u]) => {
+    localStorage.setItem('fitstyle:token', t);
+    localStorage.setItem('fitstyle:user', u);
+  }, [token, JSON.stringify(user)]);
   consoleErrors = [];
   page.on('console', (msg) => msg.type() === 'error' && consoleErrors.push(msg.text()));
   page.on('pageerror', (err) => consoleErrors.push(err.message));

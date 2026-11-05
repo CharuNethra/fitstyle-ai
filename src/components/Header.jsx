@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Heart, Menu, Search, ShoppingBag, Sparkles, X } from 'lucide-react';
+import { Heart, LogOut, Menu, Search, ShoppingBag, Sparkles, User, Wallet, X } from 'lucide-react';
 import { useStore } from '../context/StoreContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { useCatalog } from '../context/CatalogContext.jsx';
+import { formatPrice } from '../../shared/products.js';
 
 const NAV = [
   { to: '/shop', label: 'Shop' },
@@ -24,7 +27,9 @@ export function Logo() {
 }
 
 export default function Header() {
-  const { cartCount, wishlist, recordSearch } = useStore();
+  const { cartCount, wishlist, recordSearch, notify } = useStore();
+  const { user, guest, openAuth, logout } = useAuth();
+  const { banners } = useCatalog();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
@@ -44,8 +49,8 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-ink/5 bg-cream/90 backdrop-blur">
-      <div className="bg-ink py-2 text-center text-xs tracking-wide text-white/80">
-        Complimentary shipping over $150 · Try anything on with AI before you buy
+      <div className="bg-ink py-2 text-center text-xs tracking-wide text-white/80" data-testid="announcement">
+        {banners.length ? banners.map((b) => b.text).join(' · ') : 'Complimentary shipping over $150 · Try anything on with AI before you buy'}
       </div>
       <div className="container-luxe flex h-16 items-center gap-6">
         <button className="lg:hidden" onClick={() => setOpen((o) => !o)} aria-label="Toggle menu">
@@ -73,6 +78,26 @@ export default function Header() {
           </label>
         </form>
         <div className="ml-auto flex items-center gap-1 md:ml-0">
+          {user ? (
+            <div className="flex items-center gap-1">
+              <span className="hidden items-center gap-1.5 rounded-full bg-sand px-3 py-1.5 text-xs font-medium sm:flex" data-testid="wallet-balance" title="FitStyle Wallet">
+                <Wallet size={14} className="text-gold-dark" />{formatPrice(user.wallet ?? 0)}
+              </span>
+              <span className="hidden max-w-28 truncate px-2 text-sm font-medium md:block" data-testid="user-name">{user.name}</span>
+              <button
+                onClick={async () => { await logout(); notify('Logged out'); }}
+                className="rounded-full p-2 hover:bg-sand"
+                aria-label="Log out"
+                data-testid="logout"
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => openAuth()} className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium hover:bg-sand" data-testid="login-button">
+              <User size={18} /><span className="hidden sm:inline">{guest ? 'Guest · Log in' : 'Log in'}</span>
+            </button>
+          )}
           <Link to="/wishlist" className="relative rounded-full p-2 hover:bg-sand" aria-label="Wishlist">
             <Heart size={20} />
             {wishlist.length > 0 && (

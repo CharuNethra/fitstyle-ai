@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, Gem, Lock, ScanLine, Sparkles, WandSparkles } from 'lucide-react';
-import { PRODUCTS } from '../../shared/products.js';
+import { useCatalog } from '../context/CatalogContext.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import ProductImage from '../components/ProductImage.jsx';
 
@@ -20,6 +20,7 @@ const CATEGORY_TILES = [
 ];
 
 export default function Home() {
+  const { products: PRODUCTS } = useCatalog();
   const byId = Object.fromEntries(PRODUCTS.map((p) => [p.id, p]));
   return (
     <>

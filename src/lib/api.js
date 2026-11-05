@@ -34,8 +34,28 @@ async function shrinkPhoto(file) {
   }
 }
 
-const postJson = (url, data) =>
-  fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(handle);
+export const TOKEN_KEY = 'fitstyle:token';
+export const ADMIN_TOKEN_KEY = 'fitstyle:admin-token';
+
+const authHeader = (admin) => {
+  const token = localStorage.getItem(admin ? ADMIN_TOKEN_KEY : TOKEN_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const send = (method, url, data, admin = false) =>
+  fetch(url, {
+    method,
+    headers: { ...authHeader(admin), ...(data !== undefined && { 'Content-Type': 'application/json' }) },
+    body: data !== undefined ? JSON.stringify(data) : undefined,
+  }).then(handle);
+
+const postJson = (url, data) => send('POST', url, data);
+const admin = {
+  get: (url) => send('GET', url, undefined, true),
+  post: (url, data) => send('POST', url, data, true),
+  put: (url, data) => send('PUT', url, data, true),
+  del: (url) => send('DELETE', url, undefined, true),
+};
 
 export const api = {
   health: () => fetch('/api/health').then(handle),
@@ -43,7 +63,29 @@ export const api = {
     const form = new FormData();
     form.append('productId', productId);
     form.append('photo', await shrinkPhoto(photo));
-    return fetch('/api/try-on', { method: 'POST', body: form }).then(handle);
+    return fetch('/api/try-on', { method: 'POST', headers: authHeader(), body: form }).then(handle);
+  },
+  products: () => send('GET', '/api/products'),
+  offers: () => send('GET', '/api/offers'),
+  validateCode: (code) => postJson('/api/offers/validate', { code }),
+  signup: (data) => postJson('/api/auth/signup', data),
+  login: (data) => postJson('/api/auth/login', data),
+  logout: () => postJson('/api/auth/logout', {}),
+  me: () => send('GET', '/api/auth/me'),
+  admin: {
+    login: (data) => postJson('/api/admin/login', data),
+    logout: () => admin.post('/api/auth/logout', {}),
+    me: () => admin.get('/api/auth/me'),
+    stats: () => admin.get('/api/admin/stats'),
+    createProduct: (data) => admin.post('/api/admin/products', data),
+    updateProduct: (id, data) => admin.put(`/api/admin/products/${encodeURIComponent(id)}`, data),
+    deleteProduct: (id) => admin.del(`/api/admin/products/${encodeURIComponent(id)}`),
+    offers: () => admin.get('/api/admin/offers'),
+    createCode: (data) => admin.post('/api/admin/offers/codes', data),
+    deleteCode: (code) => admin.del(`/api/admin/offers/codes/${encodeURIComponent(code)}`),
+    createBanner: (text) => admin.post('/api/admin/offers/banners', { text }),
+    deleteBanner: (id) => admin.del(`/api/admin/offers/banners/${encodeURIComponent(id)}`),
+    setSaleTag: (id, label) => admin.put(`/api/admin/offers/sale-tags/${encodeURIComponent(id)}`, { label }),
   },
   calculateMatch: (productId, image) => postJson('/api/calculate-match', { productId, image }),
   stylingSuggestions: (productId, image, match) => postJson('/api/styling-suggestions', { productId, image, match }),

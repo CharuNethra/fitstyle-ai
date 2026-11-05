@@ -3,6 +3,10 @@ export function getConfig(env = process.env) {
   const visionProvider = env.OPENAI_API_KEY ? 'openai' : env.GEMINI_API_KEY ? 'gemini' : 'mock';
   return {
     port: Number(env.PORT) || 5001,
+    // Demo JSON database. Vercel only allows writes to /tmp (reset on cold starts).
+    dataFile: env.DATA_FILE ?? (env.VERCEL ? '/tmp/fitstyle-data/db.json' : 'data/db.json'),
+    adminEmail: (env.ADMIN_EMAIL || 'admin@fitstyle.ai').toLowerCase(),
+    adminPassword: env.ADMIN_PASSWORD || 'admin123',
     tryOnProvider,
     visionProvider,
     hfToken: env.HF_TOKEN || undefined,

@@ -1,11 +1,15 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Heart, ShoppingBag, Trash2, WandSparkles } from 'lucide-react';
-import { formatPrice, getProduct } from '../../shared/products.js';
+import { formatPrice } from '../../shared/products.js';
+import { useCatalog } from '../context/CatalogContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import ProductImage from '../components/ProductImage.jsx';
 import { useStore } from '../context/StoreContext.jsx';
 
 export default function Wishlist() {
+  const { products: PRODUCTS, getProduct } = useCatalog();
   const { wishlist, toggleWishlist, addToCart, notify } = useStore();
+  const { requireAuth } = useAuth();
   const navigate = useNavigate();
   const items = wishlist.map(getProduct).filter(Boolean);
 
@@ -34,7 +38,7 @@ export default function Wishlist() {
               <p className="mt-1 font-semibold">{formatPrice(p.price)}</p>
               <div className="mt-auto flex flex-col gap-2 pt-3">
                 <button
-                  onClick={() => { addToCart(p.id, 'M'); toggleWishlist(p.id); notify(`Moved ${p.name} to your bag`); }}
+                  onClick={() => requireAuth(() => { addToCart(p.id, 'M'); toggleWishlist(p.id); notify(`Moved ${p.name} to your bag`); }, 'Log in or sign up to add items to your bag.')}
                   className="btn-primary px-4 py-2 text-xs"
                   data-testid="move-to-cart"
                 >

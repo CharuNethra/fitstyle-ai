@@ -1,17 +1,21 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Heart, Layers, Palette, ShoppingBag, Star, Sun, Truck, WandSparkles } from 'lucide-react';
-import { PRODUCTS, formatPrice, getProduct } from '../../shared/products.js';
+import { formatPrice } from '../../shared/products.js';
+import { useCatalog } from '../context/CatalogContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import ProductImage from '../components/ProductImage.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import { useStore } from '../context/StoreContext.jsx';
 import NotFound from './NotFound.jsx';
 
 export default function ProductDetail() {
+  const { products: PRODUCTS, getProduct } = useCatalog();
   const { id } = useParams();
   const product = getProduct(id);
   const navigate = useNavigate();
   const { addToCart, toggleWishlist, isWishlisted, notify } = useStore();
+  const { requireAuth } = useAuth();
   const [size, setSize] = useState('M');
 
   if (!product) return <NotFound />;
@@ -53,14 +57,14 @@ export default function ProductDetail() {
           </div>
 
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-            <button onClick={() => navigate(`/try-on?product=${product.id}`)} className="btn-gold flex-1" data-testid="try-on-now">
+            <button onClick={() => requireAuth(() => navigate(`/try-on?product=${product.id}`), 'Log in or sign up to use the Virtual Try-On.')} className="btn-gold flex-1" data-testid="try-on-now">
               <WandSparkles size={16} />Try On Now
             </button>
             <button
-              onClick={() => {
+              onClick={() => requireAuth(() => {
                 addToCart(product.id, size);
                 notify(`Added ${product.name} (${size}) to your bag`);
-              }}
+              }, 'Log in or sign up to add items to your bag.')}
               className="btn-primary flex-1"
               data-testid="add-to-cart"
             >

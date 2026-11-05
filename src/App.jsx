@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
+import AuthModal from './components/AuthModal.jsx';
+import Admin from './pages/Admin.jsx';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import Toasts from './components/Toasts.jsx';
@@ -21,6 +23,16 @@ function ScrollToTop() {
 }
 
 export default function App() {
+  const { pathname } = useLocation();
+  if (pathname.startsWith('/admin')) {
+    return (
+      <>
+        <ScrollToTop />
+        <Admin />
+        <Toasts />
+      </>
+    );
+  }
   return (
     <div className="flex min-h-screen flex-col">
       <ScrollToTop />
@@ -39,6 +51,7 @@ export default function App() {
       </main>
       <Footer />
       <Toasts />
+      <AuthModal />
     </div>
   );
 }

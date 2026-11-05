@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, Minus, Plus, ShoppingBag, Trash2, Truck } from 'lucide-react';
-import { formatPrice, getProduct } from '../../shared/products.js';
+import { formatPrice } from '../../shared/products.js';
+import { useCatalog } from '../context/CatalogContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import ProductImage from '../components/ProductImage.jsx';
 import CheckoutModal from '../components/CheckoutModal.jsx';
 import { useStore } from '../context/StoreContext.jsx';
@@ -10,7 +12,9 @@ const FREE_SHIPPING = 150;
 const TAX_RATE = 0.08;
 
 export default function Cart() {
+  const { products: PRODUCTS, getProduct } = useCatalog();
   const { cart, setQty, removeFromCart, clearCart, subtotal, toggleWishlist, isWishlisted, notify } = useStore();
+  const { requireAuth } = useAuth();
   const [checkout, setCheckout] = useState(false);
   const [total, setTotal] = useState(0);
 
@@ -94,7 +98,7 @@ export default function Cart() {
             {shipping > 0 && (
               <p className="mt-4 flex items-center gap-2 rounded-xl bg-cream p-3 text-xs text-ink/60"><Truck size={14} />Add {formatPrice(FREE_SHIPPING - subtotal)} more for free shipping</p>
             )}
-            <button onClick={() => { setTotal(grand); setCheckout(true); }} className="btn-primary mt-6 w-full py-4" data-testid="checkout">Checkout</button>
+            <button onClick={() => requireAuth(() => { setTotal(grand); setCheckout(true); }, 'Log in or sign up to check out.')} className="btn-primary mt-6 w-full py-4" data-testid="checkout">Checkout</button>
             <Link to="/shop" className="btn-ghost mt-2 w-full">Continue shopping</Link>
           </aside>
         </div>

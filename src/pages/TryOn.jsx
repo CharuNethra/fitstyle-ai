@@ -3,7 +3,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 import {
   Check, Download, Footprints, Gem, Heart, Info, LoaderCircle, RefreshCw, Scissors, ShoppingBag, Sparkles, WandSparkles,
 } from 'lucide-react';
-import { CATEGORIES, PRODUCTS, formatPrice, getProduct } from '../../shared/products.js';
+import { CATEGORIES, formatPrice } from '../../shared/products.js';
+import { useCatalog } from '../context/CatalogContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import ProductImage from '../components/ProductImage.jsx';
 import PhotoDropzone from '../components/PhotoDropzone.jsx';
 import ScoreRing from '../components/ScoreRing.jsx';
@@ -20,6 +22,7 @@ const STAGES = [
 const PROVIDER_LABEL = { mock: 'FitStyle preview engine', huggingface: 'Hugging Face', fal: 'Fal.ai · FASHN', fashn: 'FASHN', openai: 'OpenAI', gemini: 'Google Gemini' };
 
 function OutfitPicker({ selectedId, onSelect }) {
+  const { products: PRODUCTS } = useCatalog();
   const [cat, setCat] = useState('All');
   const list = PRODUCTS.filter((p) => cat === 'All' || p.categories.includes(cat));
   return (
@@ -72,10 +75,12 @@ function SuggestionColumn({ icon: Icon, title, items, testId }) {
 }
 
 export default function TryOn() {
+  const { products: PRODUCTS, getProduct } = useCatalog();
   const [params, setParams] = useSearchParams();
   const productId = getProduct(params.get('product')) ? params.get('product') : PRODUCTS[0].id;
   const product = getProduct(productId);
   const { addToCart, toggleWishlist, isWishlisted, notify } = useStore();
+  const { requireAuth } = useAuth();
 
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState(null);
@@ -169,7 +174,7 @@ export default function TryOn() {
             <p className="mt-3 flex items-start gap-2 text-xs text-ink/50"><Info size={14} className="mt-0.5 shrink-0" />Best results: stand facing the camera, arms relaxed, plain background, good lighting. Photos are processed only to generate your try-on.</p>
           </section>
 
-          <button onClick={runTryOn} disabled={!photo || busy} className="btn-gold w-full py-4 text-base" data-testid="try-on-button">
+          <button onClick={() => requireAuth(runTryOn, 'Log in or sign up to use the Virtual Try-On.')} disabled={!photo || busy} className="btn-gold w-full py-4 text-base" data-testid="try-on-button">
             {busy ? <LoaderCircle size={18} className="animate-spin" /> : <WandSparkles size={18} />}
             {busy ? 'Creating your look…' : result ? 'Try On Again' : 'Try On'}
           </button>
@@ -218,7 +223,7 @@ export default function TryOn() {
                 )}
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <button onClick={() => { addToCart(product.id, 'M'); notify(`Added ${product.name} to your bag`); }} className="btn-primary flex-1 py-2.5"><ShoppingBag size={15} />Add to Cart</button>
+                <button onClick={() => requireAuth(() => { addToCart(product.id, 'M'); notify(`Added ${product.name} to your bag`); }, 'Log in or sign up to add items to your bag.')} className="btn-primary flex-1 py-2.5"><ShoppingBag size={15} />Add to Cart</button>
                 <button onClick={() => { toggleWishlist(product.id); notify(saved ? 'Removed from wishlist' : 'Saved to wishlist'); }} className="btn-outline py-2.5" aria-pressed={saved}><Heart size={15} className={saved ? 'fill-gold text-gold' : ''} /></button>
                 <a href={result.image} download={`fitstyle-${product.id}.jpg`} target="_blank" rel="noreferrer" className="btn-outline py-2.5" aria-label="Download try-on image"><Download size={15} /></a>
                 <button onClick={reset} className="btn-outline py-2.5" aria-label="Start over"><RefreshCw size={15} /></button>

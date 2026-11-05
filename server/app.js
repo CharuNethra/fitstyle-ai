@@ -4,7 +4,11 @@ import multer from 'multer';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PRODUCTS, getProduct } from '../shared/products.js';
+import { HttpError } from './http.js';
+import { createStore } from './store.js';
+import { listProducts, findProduct } from './catalog.js';
+import { authenticate, authRoutes, requireUser } from './routes/auth.js';
+import { adminRoutes } from './routes/admin.js';
 import { normalizePhoto, dataUrlToBuffer } from './services/imageUtils.js';
 import { runTryOn } from './services/tryOn.js';
 import { calculateMatch, stylingSuggestions } from './services/stylist.js';
@@ -14,18 +18,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MAX_UPLOAD = 12 * 1024 * 1024;
 const ALLOWED = /^image\/(jpeg|png|webp|gif|avif|svg\+xml)$/;
 
-class HttpError extends Error {
-  constructor(status, message) {
-    super(message);
-    this.status = status;
-  }
-}
-
-const requireProduct = (id) => {
-  const product = getProduct(id);
-  if (!product) throw new HttpError(404, `Unknown productId "${id}"`);
-  return product;
-};
 
 const requireImage = (image) => {
   if (!image || typeof image !== 'string') throw new HttpError(400, 'An "image" (data URL or https URL) is required');
@@ -35,8 +27,13 @@ const requireImage = (image) => {
   return image;
 };
 
-export function createApp(config) {
+export function createApp(config, store = createStore(config.dataFile)) {
   const app = express();
+  const requireProduct = (id) => {
+    const product = findProduct(store, id);
+    if (!product) throw new HttpError(404, `Unknown productId "${id}"`);
+    return product;
+  };
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: MAX_UPLOAD },
@@ -48,16 +45,31 @@ export function createApp(config) {
 
   app.use(cors());
   app.use(express.json({ limit: '20mb' }));
+  app.use('/api', authenticate(store, config));
+  app.use('/api', authRoutes(store, config));
+  app.use('/api', adminRoutes(store));
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, providers: { tryOn: config.tryOnProvider, vision: config.visionProvider } });
   });
 
-  app.get('/api/products', (_req, res) => res.json({ products: PRODUCTS }));
+  app.get('/api/products', (_req, res) => res.json({ products: listProducts(store) }));
+
+  app.get('/api/offers', (_req, res) => {
+    const { banners, saleTags } = store.data.offers;
+    res.json({ banners: banners.filter((b) => b.active), saleTags });
+  });
+
+  app.post('/api/offers/validate', (req, res) => {
+    const code = String(req.body?.code || '').trim().toUpperCase();
+    const offer = store.data.offers.codes.find((c) => c.code === code && c.active);
+    if (!offer) throw new HttpError(404, 'That code is invalid or has expired');
+    res.json({ code: offer.code, percent: offer.percent });
+  });
 
   app.get('/api/products/:id', (req, res) => res.json({ product: requireProduct(req.params.id) }));
 
-  app.post('/api/try-on', upload.single('photo'), async (req, res) => {
+  app.post('/api/try-on', requireUser, upload.single('photo'), async (req, res) => {
     const product = requireProduct(req.body?.productId);
     let raw = req.file?.buffer;
     if (!raw && req.body?.photo) raw = dataUrlToBuffer(req.body.photo);

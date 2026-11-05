@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EyeOff, Heart, LoaderCircle, Search, ShieldCheck, ShoppingBag, Sparkles } from 'lucide-react';
-import { getProduct } from '../../shared/products.js';
+import { useCatalog } from '../context/CatalogContext.jsx';
 import ConsentModal from '../components/ConsentModal.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import { api } from '../lib/api.js';
@@ -10,6 +10,7 @@ import { useStore } from '../context/StoreContext.jsx';
 const SIGNAL_ICON = { wishlist: Heart, cart: ShoppingBag, search: Search };
 
 export default function ForYou() {
+  const { products: PRODUCTS, getProduct } = useCatalog();
   const { consent, interactions, grantConsent, denyConsent, resetConsent, notify } = useStore();
   const [modalOpen, setModalOpen] = useState(consent !== 'granted' && consent !== 'denied');
   const [recs, setRecs] = useState(null);

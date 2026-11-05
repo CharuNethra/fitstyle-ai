@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
-import { CATEGORIES, PRODUCTS } from '../../shared/products.js';
+import { CATEGORIES } from '../../shared/products.js';
+import { useCatalog } from '../context/CatalogContext.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import { useStore } from '../context/StoreContext.jsx';
 
@@ -18,6 +19,7 @@ function matches(p, q) {
 }
 
 export default function Shop() {
+  const { products: PRODUCTS } = useCatalog();
   const [params, setParams] = useSearchParams();
   const { recordSearch } = useStore();
   const category = CATEGORIES.includes(params.get('category')) ? params.get('category') : 'All';
@@ -40,7 +42,7 @@ export default function Shop() {
     () => PRODUCTS.filter((p) => category === 'All' || p.categories.includes(category))
       .filter((p) => !q || matches(p, q))
       .sort(SORTS[sort].fn),
-    [category, q, sort],
+    [PRODUCTS, category, q, sort],
   );
 
   const submit = (e) => {

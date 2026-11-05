@@ -18,6 +18,11 @@ export function fashnCategory(product) {
 /** Garment reference for real try-on models: the product photo when available, otherwise the rendered illustration. */
 export async function garmentPng(product, width = 768) {
   const source = product.tryOnImage || product.image;
+  if (source && /^https:\/\//.test(source)) {
+    const res = await fetch(source, { signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) throw new Error(`Garment image responded ${res.status}`);
+    return sharp(Buffer.from(await res.arrayBuffer())).flatten({ background: '#ffffff' }).png().toBuffer();
+  }
   if (source) {
     const file = path.join(PUBLIC_DIR, path.normalize(source).replace(/^([/\\])+/, ''));
     return sharp(await fs.readFile(file)).flatten({ background: '#ffffff' }).png().toBuffer();

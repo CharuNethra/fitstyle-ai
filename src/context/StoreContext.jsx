@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { getProduct } from '../../shared/products.js';
+import { useCatalog } from './CatalogContext.jsx';
 
 const STORE_KEY = 'fitstyle:store:v1';
 const CONSENT_KEY = 'fitstyle:recs-consent';
@@ -12,8 +12,8 @@ function load() {
     const raw = JSON.parse(localStorage.getItem(STORE_KEY));
     if (raw && Array.isArray(raw.cart)) {
       return {
-        cart: raw.cart.filter((i) => getProduct(i.id)),
-        wishlist: (raw.wishlist || []).filter((id) => getProduct(id)),
+        cart: raw.cart,
+        wishlist: raw.wishlist || [],
         interactions: { ...emptyInteractions, ...raw.interactions },
       };
     }
@@ -72,6 +72,7 @@ function reducer(state, action) {
 const StoreContext = createContext(null);
 
 export function StoreProvider({ children }) {
+  const { getProduct } = useCatalog();
   const [state, dispatch] = useReducer(reducer, undefined, () => ({
     ...load(),
     consent: sessionStorage.getItem(CONSENT_KEY),
@@ -108,11 +109,12 @@ export function StoreProvider({ children }) {
   }), []);
 
   const cartCount = state.cart.reduce((n, i) => n + i.qty, 0);
-  const subtotal = state.cart.reduce((n, i) => n + getProduct(i.id).price * i.qty, 0);
+  const subtotal = state.cart.reduce((n, i) => n + (getProduct(i.id)?.price ?? 0) * i.qty, 0);
 
   const value = useMemo(
     () => ({ ...state, ...actions, cartCount, subtotal, toasts, notify, isWishlisted: (id) => state.wishlist.includes(id) }),
     [state, actions, cartCount, subtotal, toasts, notify],
+  
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
