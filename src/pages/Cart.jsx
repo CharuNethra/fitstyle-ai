@@ -84,7 +84,7 @@ export default function Cart() {
               return (
                 <li key={item.key} className="flex gap-5 py-6" data-testid="cart-item">
                   <Link to={`/product/${p.id}`}><ProductImage product={p} className="h-36 w-28 shrink-0 rounded-2xl" /></Link>
-                  <div className="flex flex-1 flex-col">
+                  <div className="flex min-w-0 flex-1 flex-col">
                     <div className="flex justify-between gap-4">
                       <div>
                         <Link to={`/product/${p.id}`} className="font-semibold hover:text-gold-dark">{p.name}</Link>
@@ -92,7 +92,7 @@ export default function Cart() {
                       </div>
                       <p className="font-semibold" data-testid="line-total">{formatPrice(p.price * item.qty)}</p>
                     </div>
-                    <div className="mt-auto flex items-center justify-between pt-4">
+                    <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
                       <div className="flex items-center rounded-full border border-ink/15 bg-white">
                         <button onClick={() => setQty(item.key, item.qty - 1)} disabled={item.qty <= 1} className="p-2.5 disabled:opacity-30" aria-label="Decrease quantity"><Minus size={14} /></button>
                         <span className="w-8 text-center text-sm font-semibold" data-testid="qty">{item.qty}</span>
@@ -126,7 +126,7 @@ export default function Cart() {
               <p className="mt-4 flex items-center gap-2 rounded-xl bg-cream p-3 text-xs text-ink/60"><Truck size={14} />Add {formatPrice(FREE_DELIVERY_OVER - subtotal + totals.discount)} more for free delivery</p>
             )}
             <form onSubmit={applyCode} className="mt-4 flex gap-2">
-              <input value={codeInput} onChange={(e) => setCodeInput(e.target.value.toUpperCase())} placeholder="Discount code" aria-label="Discount code" className="input py-2" data-testid="code-input" />
+              <input value={codeInput} onChange={(e) => setCodeInput(e.target.value.toUpperCase())} placeholder="Discount code" aria-label="Discount code" className="input min-w-0 flex-1 py-2" data-testid="code-input" />
               <button className="btn-ghost px-4 py-2 text-sm" data-testid="apply-code">Apply</button>
             </form>
             {codeError && <p className="mt-1 text-xs text-red-600" data-testid="code-error">{codeError}</p>}

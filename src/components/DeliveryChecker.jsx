@@ -25,7 +25,7 @@ export default function DeliveryChecker({ className = '', onChange }) {
     <div className={`rounded-2xl border border-ink/10 bg-white p-4 ${className}`} data-testid="delivery-checker">
       <p className="flex items-center gap-2 text-sm font-semibold"><Truck size={16} className="text-gold-dark" />Check Delivery Availability</p>
       <form onSubmit={check} className="mt-3 flex gap-2">
-        <label className="relative flex-1">
+        <label className="relative min-w-0 flex-1">
           <MapPin size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
           <input
             value={pin}

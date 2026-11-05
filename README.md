@@ -148,3 +148,11 @@ Photos are processed in memory only to generate the try-on and are never stored.
 
 The repo includes a Vercel setup: [`vercel.json`](vercel.json) serves the Vite build and sends every `/api/*` request to [`api/index.js`](api/index.js), which runs the same Express app as a serverless function (60 s limit). In the Vercel project, open **Settings -> Environment Variables**, add `GEMINI_API_KEY` (plus any other keys from `.env.example`), then redeploy. `.env` is not deployed, so without these variables try-on falls back to Hugging Face or the mock. On Vercel each try-on model attempt is capped at 25 s (`TRYON_TIMEOUT_MS`) so the fallback can still respond within the function limit, and photos are downscaled in the browser to stay under Vercel's 4.5 MB request limit.
 
+## Accounts, admin and checkout
+
+- **Accounts:** sign up, log in or continue as a guest. Guests can browse and use the wishlist; cart, checkout and try-on ask them to log in. New accounts get a $50 FitStyle Wallet balance.
+- **Admin portal:** there is no link to it in the shop. Staff sign in at `/admin/login` with `ADMIN_EMAIL` / `ADMIN_PASSWORD`. Locally the demo password `admin123` works; in production or on Vercel, admin login is disabled until `ADMIN_PASSWORD` is set. Guests and customers who open `/admin` are sent to the home page with an "Access Denied" message, and `/api/admin/*` returns 401 without an admin token and 403 for customer tokens.
+- **Catalogue:** Women / Men / Kids → Dresses / Footwear / Accessories → style. Intimates / Innerwear is shown on a mannequin only, and personal-photo try-on is blocked for it in both the UI and the API.
+- **Complete the look:** product pages suggest items from the other two categories. Each suggestion has an optional "Try-On with Current Look" button that adds it to your last try-on result.
+- **Delivery and checkout:** enter a 6-digit pincode to see the estimated delivery time. Checkout supports discount codes, the FitStyle Wallet (deducted automatically) and simulated Cash on Delivery, UPI (Google Pay / PhonePe / Paytm) and card payments. No real money is charged.
+
