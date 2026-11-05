@@ -59,6 +59,31 @@ export async function geminiTryOn(photo, garment, product, category, config) {
     { inline_data: { mime_type: 'image/jpeg', data: person.image.toString('base64') } },
     { inline_data: { mime_type: 'image/png', data: cleanGarment.toString('base64') } },
   ];
+  return generateWithFallback(parts, person, config);
+}
+
+export function addItemPrompt(product) {
+  return [
+    'You are a virtual styling engine for a fashion store.',
+    `Image 1 is a photo of a dressed person. Image 2 is a product photo of ${product.category === 'Footwear' ? 'footwear' : 'an accessory'}: ${product.colorName} ${product.name} (${product.subCategory}).`,
+    'Generate one photorealistic image of the exact same person now also wearing or carrying that item in its natural place (shoes on the feet, bag in hand or on the shoulder, jewellery, watch, sunglasses, belt or scarf worn correctly).',
+    "Keep the person's face, identity, outfit, body, pose, camera framing and background exactly as in image 1.",
+    'Do not add any other items, text or people. Return only the image.',
+  ].join(' ');
+}
+
+export async function geminiAddItem(photo, item, product, config) {
+  const person = await preparePerson(photo);
+  const cleanItem = await prepareGarment(item);
+  const parts = [
+    { text: addItemPrompt(product) },
+    { inline_data: { mime_type: 'image/jpeg', data: person.image.toString('base64') } },
+    { inline_data: { mime_type: 'image/png', data: cleanItem.toString('base64') } },
+  ];
+  return generateWithFallback(parts, person, config);
+}
+
+async function generateWithFallback(parts, person, config) {
   const models = [...new Set([config.geminiImageModel, ...GEMINI_IMAGE_FALLBACK_MODELS].filter(Boolean))];
   let lastErr;
   for (const model of models) {

@@ -74,3 +74,30 @@ test('personal-photo try-on is refused for intimate wear', async () => {
     .expect(403);
   assert.match(res.body.error, /disabled for intimate wear/);
 });
+
+test('cross-category pairings and optional layered try-on', async () => {
+  const { pairingsFor } = await import('../../shared/pairing.js');
+  const { PRODUCTS } = await import('../../shared/products.js');
+  const get = (id) => PRODUCTS.find((p) => p.id === id);
+  const cats = (id) => pairingsFor(get(id), PRODUCTS).map((g) => g.category);
+  assert.deepEqual(cats('scarlet-cocktail'), ['Footwear', 'Accessories']);
+  assert.deepEqual(cats('gilded-stiletto-pumps'), ['Dresses', 'Accessories']);
+  assert.deepEqual(cats('gold-chain-clutch'), ['Dresses', 'Footwear']);
+  const groups = pairingsFor(get('scarlet-cocktail'), PRODUCTS);
+  for (const g of groups) {
+    assert.ok(g.items.length > 0);
+    assert.ok(g.items.every(({ product }) => product.audience === 'Women'));
+  }
+  assert.deepEqual(pairingsFor(get('blush-lace-bralette'), PRODUCTS), []);
+
+  const sharp = (await import('sharp')).default;
+  const look = await sharp({ create: { width: 300, height: 400, channels: 3, background: '#cccccc' } }).jpeg().toBuffer();
+  const image = `data:image/jpeg;base64,${look.toString('base64')}`;
+  await request(app).post('/api/try-on/layer').send({ productId: 'gold-chain-clutch', image }).expect(401);
+  const user = await request(app).post('/api/auth/signup').send({ name: 'L', email: 'layer@example.com', password: 'secret1' }).expect(201);
+  const auth = `Bearer ${user.body.token}`;
+  const res = await request(app).post('/api/try-on/layer').set('Authorization', auth).send({ productId: 'gold-chain-clutch', image }).expect(200);
+  assert.match(res.body.image, /^data:image\//);
+  assert.equal(res.body.provider, 'mock');
+  await request(app).post('/api/try-on/layer').set('Authorization', auth).send({ productId: 'noir-modal-briefs', image }).expect(403);
+});

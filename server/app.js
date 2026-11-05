@@ -11,7 +11,7 @@ import { authenticate, authRoutes, requireUser } from './routes/auth.js';
 import { adminRoutes } from './routes/admin.js';
 import { INTIMATES_MESSAGE, isIntimate } from '../shared/taxonomy.js';
 import { normalizePhoto, dataUrlToBuffer } from './services/imageUtils.js';
-import { runTryOn } from './services/tryOn.js';
+import { runLayerTryOn, runTryOn } from './services/tryOn.js';
 import { calculateMatch, stylingSuggestions } from './services/stylist.js';
 import { recommend } from './services/recommend.js';
 
@@ -84,6 +84,22 @@ export function createApp(config, store = createStore(config.dataFile)) {
     }
     const result = await runTryOn(photo, product, config);
     res.json({ productId: product.id, ...result });
+  });
+
+  app.post('/api/try-on/layer', requireUser, async (req, res) => {
+    const product = requireProduct(req.body?.productId);
+    if (isIntimate(product)) throw new HttpError(403, INTIMATES_MESSAGE);
+    const image = requireImage(req.body?.image);
+    let raw;
+    try {
+      raw = image.startsWith('data:')
+        ? dataUrlToBuffer(image)
+        : Buffer.from(await (await fetch(image, { signal: AbortSignal.timeout(20_000) })).arrayBuffer());
+      raw = await normalizePhoto(raw);
+    } catch {
+      throw new HttpError(422, 'We could not read the current look image.');
+    }
+    res.json({ productId: product.id, ...(await runLayerTryOn(raw, product, config)) });
   });
 
   app.post('/api/calculate-match', async (req, res) => {

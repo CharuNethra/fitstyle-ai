@@ -6,6 +6,7 @@ import {
 import { formatPrice } from '../../shared/products.js';
 import { AUDIENCES, isIntimate } from '../../shared/taxonomy.js';
 import SafetyNotice from '../components/SafetyNotice.jsx';
+import { pairingsFor } from '../../shared/pairing.js';
 import { useCatalog } from '../context/CatalogContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import ProductImage from '../components/ProductImage.jsx';
@@ -20,6 +21,42 @@ const STAGES = [
   { key: 'match', label: 'Scoring fit, colour harmony & season' },
   { key: 'style', label: 'Styling your complete look' },
 ];
+
+function LookBuilder({ product, queued, layers, busyId, onAdd, onUndo, canUndo, warning }) {
+  const { products } = useCatalog();
+  const recs = pairingsFor(product, products, 3).filter((g) => g.category !== 'Dresses').flatMap((g) => g.items.map((i) => i.product));
+  const items = [...queued.filter((q) => q.id !== product.id), ...recs.filter((r) => !queued.some((q) => q.id === r.id))].slice(0, 8);
+  if (!items.length) return null;
+  return (
+    <section className="mt-10 card p-6" data-testid="look-builder">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="eyebrow">Complete the look</p>
+          <h2 className="mt-1 text-2xl font-semibold">Add matching pieces — only if you want to</h2>
+          <p className="mt-1 text-sm text-ink/60">Each piece is added to your current try-on one at a time. Nothing is tried on automatically.</p>
+        </div>
+        {canUndo && <button onClick={onUndo} className="text-sm font-semibold text-gold-dark underline-offset-2 hover:underline" data-testid="undo-layer">Undo last piece</button>}
+      </div>
+      {warning && <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-2 text-xs text-amber-800" data-testid="layer-warning">{warning}</p>}
+      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {items.map((p) => {
+          const added = layers.includes(p.id);
+          return (
+            <div key={p.id} className="rounded-2xl bg-cream p-3" data-testid={`look-item-${p.id}`}>
+              <ProductImage product={p} className="aspect-square rounded-xl" />
+              <p className="mt-2 truncate text-sm font-medium">{p.name}</p>
+              <p className="text-xs text-ink/50">{p.subCategory} · {formatPrice(p.price)}</p>
+              <button disabled={added || !!busyId} onClick={() => onAdd(p)} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-full bg-ink px-3 py-2 text-xs font-semibold text-white disabled:opacity-50" data-testid="try-with-look">
+                {busyId === p.id ? <LoaderCircle size={14} className="animate-spin" /> : added ? <Check size={14} /> : <WandSparkles size={14} />}
+                {added ? 'Added to look' : 'Try-On with Current Look'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 const PROVIDER_LABEL = { mock: 'FitStyle preview engine', huggingface: 'Hugging Face', fal: 'Fal.ai · FASHN', fashn: 'FASHN', openai: 'OpenAI', gemini: 'Google Gemini' };
 
@@ -91,6 +128,32 @@ export default function TryOn() {
   const [match, setMatch] = useState(null);
   const [styling, setStyling] = useState(null);
   const [view, setView] = useState('result');
+  const [layers, setLayers] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [layering, setLayering] = useState(null);
+  const queued = (params.get('add') || '').split(',').map((id) => getProduct(id)).filter(Boolean);
+
+  const addToLook = async (item) => {
+    setLayering(item.id);
+    setError(null);
+    try {
+      const out = await api.layerTryOn(item.id, result.image);
+      setHistory((h) => [...h, { image: result.image, layers }]);
+      setResult((r) => ({ ...r, image: out.image, layerWarning: out.warning }));
+      setLayers((l) => [...l, item.id]);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLayering(null);
+    }
+  };
+  const undoLayer = () => {
+    const last = history.at(-1);
+    if (!last) return;
+    setHistory((h) => h.slice(0, -1));
+    setResult((r) => ({ ...r, image: last.image, layerWarning: undefined }));
+    setLayers(last.layers);
+  };
   const runId = useRef(0);
   const resultRef = useRef(null);
 
@@ -100,6 +163,8 @@ export default function TryOn() {
     runId.current++;
     setStage(null);
     setResult(null);
+    setLayers([]);
+    setHistory([]);
     setMatch(null);
     setStyling(null);
   };
@@ -119,6 +184,8 @@ export default function TryOn() {
     const id = ++runId.current;
     setError(null);
     setResult(null);
+    setLayers([]);
+    setHistory([]);
     setMatch(null);
     setStyling(null);
     setView('result');
@@ -256,6 +323,10 @@ export default function TryOn() {
 
       {warnings.length > 0 && (
         <div className="mt-6 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">{warnings.join(' ')}</div>
+      )}
+
+      {result && (
+        <LookBuilder product={product} queued={queued} layers={layers} busyId={layering} onAdd={addToLook} onUndo={undoLayer} canUndo={history.length > 0} warning={result.layerWarning} />
       )}
 
       {match && (

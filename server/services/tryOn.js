@@ -5,7 +5,7 @@ import sharp from 'sharp';
 import { garmentSvg, GARMENT_SHAPES } from '../../shared/garments.js';
 import { analyzePhoto, bufferToDataUrl } from './imageUtils.js';
 import { huggingFaceTryOn } from './hfTryOn.js';
-import { geminiTryOn } from './geminiTryOn.js';
+import { geminiAddItem, geminiTryOn } from './geminiTryOn.js';
 
 const ONE_PIECE = new Set(['dress', 'gown']);
 const PUBLIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
@@ -179,4 +179,34 @@ export async function runTryOn(photo, product, config) {
   }
   const result = await mockTryOn(photo, product);
   return { ...result, provider: 'mock' };
+}
+
+async function mockAddItem(photo, product) {
+  const { width: W, height: H } = await sharp(photo).metadata();
+  const size = Math.round(Math.min(W, H) * 0.28);
+  const thumb = await sharp(await garmentPng(product))
+    .flatten({ background: '#ffffff' })
+    .resize(size, size, { fit: 'contain', background: '#ffffff' })
+    .extend({ top: 6, bottom: 6, left: 6, right: 6, background: '#ffffff' })
+    .png()
+    .toBuffer();
+  const margin = Math.round(Math.min(W, H) * 0.03);
+  const top = product.category === 'Footwear' ? H - size - 12 - margin : margin;
+  const out = await sharp(photo).composite([{ input: thumb, left: W - size - 12 - margin, top }]).jpeg({ quality: 90 }).toBuffer();
+  return { image: bufferToDataUrl(out) };
+}
+
+// Adds one recommended piece to an existing look. Dresses re-run the main try-on;
+// footwear and accessories are layered by Gemini, or shown as a styled pairing preview.
+export async function runLayerTryOn(photo, product, config) {
+  if (product.category === 'Dresses') return runTryOn(photo, product, config);
+  if (config.tryOnProvider === 'gemini' && config.geminiKey) {
+    try {
+      return { ...(await geminiAddItem(photo, await garmentPng(product), product, config)), provider: 'gemini' };
+    } catch (err) {
+      console.warn('[try-on] Gemini layering failed, using pairing preview:', err.message);
+      return { ...(await mockAddItem(photo, product)), provider: 'mock', warning: 'Gemini styling is unavailable — showing a styled pairing preview.' };
+    }
+  }
+  return { ...(await mockAddItem(photo, product)), provider: 'mock', warning: 'Footwear and accessories are layered by Gemini — showing a styled pairing preview.' };
 }

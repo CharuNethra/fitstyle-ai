@@ -5,7 +5,7 @@ import { useStore } from '../context/StoreContext.jsx';
 import ProductImage from './ProductImage.jsx';
 import { isIntimate } from '../../shared/taxonomy.js';
 
-export default function ProductCard({ product, badge, note }) {
+export default function ProductCard({ product, badge, note, action }) {
   const { isWishlisted, toggleWishlist, notify } = useStore();
   const navigate = useNavigate();
   const saved = isWishlisted(product.id);
@@ -51,6 +51,7 @@ export default function ProductCard({ product, badge, note }) {
         </div>
       </div>
       {note && <p className="mt-2 px-1 text-xs italic leading-relaxed text-gold-dark">{note}</p>}
+      {action && <div className="mt-3 px-1">{action}</div>}
     </article>
   );
 }

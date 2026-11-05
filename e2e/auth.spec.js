@@ -95,7 +95,7 @@ test('admin portal: login, dashboard, product CRUD and offers', async ({ page })
 
   await page.goto('/product/e2e-silk-saree');
   await page.getByTestId('continue-guest').click();
-  await expect(page.getByRole('heading', { name: 'E2E Silk Saree' })).toBeVisible();
+  await expect(page.getByTestId('product-title')).toHaveText('E2E Silk Saree');
   await expect(page.getByTestId('announcement')).toContainText('E2E mega sale is live');
 
   await page.goto('/admin');

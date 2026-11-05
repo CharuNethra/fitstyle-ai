@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import ProductImage from '../components/ProductImage.jsx';
 import SafetyNotice from '../components/SafetyNotice.jsx';
 import { isIntimate } from '../../shared/taxonomy.js';
+import { pairingsFor } from '../../shared/pairing.js';
 import ProductCard from '../components/ProductCard.jsx';
 import { useStore } from '../context/StoreContext.jsx';
 import NotFound from './NotFound.jsx';
@@ -22,6 +23,13 @@ export default function ProductDetail() {
 
   if (!product) return <NotFound />;
   const saved = isWishlisted(product.id);
+  const pairs = pairingsFor(product, PRODUCTS);
+  const tryWithLook = (rec) => {
+    const dress = [product, rec].find((x) => x.category === 'Dresses') || pairs.find((g) => g.category === 'Dresses')?.items[0]?.product;
+    if (!dress) return;
+    const add = [product, rec].filter((x) => x.id !== dress.id).map((x) => x.id).join(',');
+    requireAuth(() => navigate(`/try-on?product=${dress.id}${add ? `&add=${add}` : ''}`), 'Log in or sign up to use the Virtual Try-On.');
+  };
   const similar = PRODUCTS.filter((p) => p.id !== product.id && (p.style === product.style || p.type === product.type)).slice(0, 4);
 
   return (
@@ -99,6 +107,32 @@ export default function ProductDetail() {
           <p className="mt-6 flex items-center gap-2 text-xs text-ink/50"><Truck size={14} />Free delivery over $150 · Free 30-day returns</p>
         </div>
       </div>
+
+      {pairs.some((g) => g.items.length) && (
+        <section className="mt-20" data-testid="complete-the-look">
+          <p className="eyebrow">Complete the look</p>
+          <h2 className="mt-2 text-2xl font-semibold">Pairs well with {product.name}</h2>
+          {pairs.map((g) => g.items.length > 0 && (
+            <div key={g.category} className="mt-8" data-testid={`pair-${g.category}`}>
+              <h3 className="font-sans text-sm font-semibold uppercase tracking-widest text-ink/50">{g.category}</h3>
+              <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-4">
+                {g.items.map(({ product: p, reason }) => (
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    note={reason}
+                    action={(
+                      <button onClick={() => tryWithLook(p)} className="flex w-full items-center justify-center gap-1.5 rounded-full border border-ink/15 bg-white px-3 py-2 text-xs font-semibold transition hover:border-ink" data-testid="try-with-look">
+                        <WandSparkles size={14} /> Try-On with Current Look
+                      </button>
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
 
       {similar.length > 0 && (
         <section className="mt-20">

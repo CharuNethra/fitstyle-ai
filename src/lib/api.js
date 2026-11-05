@@ -65,6 +65,12 @@ export const api = {
     form.append('photo', await shrinkPhoto(photo));
     return fetch('/api/try-on', { method: 'POST', headers: authHeader(), body: form }).then(handle);
   },
+  layerTryOn: (productId, image) =>
+    fetch('/api/try-on/layer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ productId, image }),
+    }).then(handle),
   products: () => send('GET', '/api/products'),
   offers: () => send('GET', '/api/offers'),
   validateCode: (code) => postJson('/api/offers/validate', { code }),

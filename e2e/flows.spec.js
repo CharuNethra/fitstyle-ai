@@ -40,15 +40,15 @@ test('catalog filtering and search', async ({ page }) => {
   for (const aud of ['Women', 'Men', 'Kids']) {
     await page.getByTestId('tier-audience').getByRole('tab', { name: aud, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`audience=${aud}`));
-    const n = await count();
-    expect(n).toBeGreaterThan(0);
-    expect(n).toBeLessThan(all);
+    await expect.poll(count).toBeGreaterThan(0);
+    await expect.poll(count).toBeLessThan(all);
   }
   await page.getByTestId('tier-audience').getByRole('tab', { name: 'All' }).click();
+  await expect(page).not.toHaveURL(/audience=/);
   for (const cat of ['Footwear', 'Accessories', 'Dresses']) {
     await page.getByTestId('tier-category').getByRole('tab', { name: cat, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`category=${cat}`));
-    expect(await count()).toBeLessThan(all);
+    await expect.poll(count).toBeLessThan(all);
   }
   const styleTier = page.getByTestId('tier-style');
   for (const style of ['Bridal', 'Ethnic', 'Casual', 'Party', 'Groom', 'Office', 'Beachy', 'Intimates / Innerwear']) {
@@ -208,4 +208,32 @@ test('recommendations are consent-gated: YES shows tailored grid', async ({ page
   await page.reload();
   await expect(page.getByTestId('consent-modal')).toHaveCount(0);
   await expect(page.getByTestId('recommendation-grid')).toBeVisible();
+});
+
+test('cross-category pairings and optional Try-On with Current Look', async ({ page }) => {
+  await page.goto('/product/gilded-stiletto-pumps');
+  const look = page.getByTestId('complete-the-look');
+  await expect(look.getByTestId('pair-Dresses')).toBeVisible();
+  await expect(look.getByTestId('pair-Accessories')).toBeVisible();
+  await expect(look.getByTestId('pair-Footwear')).toHaveCount(0);
+
+  await page.goto('/product/scarlet-cocktail');
+  await expect(page.getByTestId('pair-Footwear')).toBeVisible();
+  await expect(page.getByTestId('pair-Accessories')).toBeVisible();
+  await page.getByTestId('pair-Accessories').getByTestId('try-with-look').first().click();
+  await expect(page).toHaveURL(/try-on\?product=scarlet-cocktail&add=/);
+  await expect(page.getByTestId('look-builder')).toHaveCount(0);
+
+  await page.getByTestId('photo-input').setInputFiles(SAMPLE);
+  await page.getByTestId('try-on-button').click();
+  await expect(page.getByTestId('try-on-result')).toBeVisible();
+  const builder = page.getByTestId('look-builder');
+  await expect(builder).toBeVisible();
+  const first = builder.getByTestId('try-with-look').first();
+  await first.click();
+  await expect(builder.getByText('Added to look')).toHaveCount(1);
+  await expect(page.getByTestId('layer-warning')).toBeVisible();
+  await page.getByTestId('undo-layer').click();
+  await expect(builder.getByText('Added to look')).toHaveCount(0);
+  await shot(page, '09-look-builder');
 });
