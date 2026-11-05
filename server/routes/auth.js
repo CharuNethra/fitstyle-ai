@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Router } from 'express';
 import { HttpError } from '../http.js';
 import { hashPassword, newId, newToken, verifyPassword } from '../store.js';
@@ -28,8 +29,15 @@ export const requireUser = (req, _res, next) => {
   next();
 };
 
+function safeEqual(a, b) {
+  const x = crypto.createHash('sha256').update(String(a ?? '')).digest();
+  const y = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(x, y);
+}
+
 export const requireAdmin = (req, _res, next) => {
-  if (req.role !== 'admin') throw new HttpError(401, 'Admin login required');
+  if (!req.role) throw new HttpError(401, 'Admin login required');
+  if (req.role !== 'admin') throw new HttpError(403, 'Access denied');
   next();
 };
 
@@ -84,7 +92,8 @@ export function authRoutes(store, config) {
 
   r.post('/admin/login', (req, res) => {
     const email = cleanEmail(req.body?.email);
-    if (email !== config.adminEmail || req.body?.password !== config.adminPassword) {
+    if (!config.adminPassword) throw new HttpError(503, 'Admin login is not configured on this server');
+    if (email !== config.adminEmail || !safeEqual(req.body?.password, config.adminPassword)) {
       throw new HttpError(401, 'Incorrect admin credentials');
     }
     res.json({ token: startSession(store, 'admin', 'admin'), user: { id: 'admin', name: 'Admin', email, role: 'admin' } });

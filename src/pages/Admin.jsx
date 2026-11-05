@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { BadgePercent, LayoutDashboard, LogOut, Megaphone, Package, Pencil, Plus, ShieldCheck, Tag, Trash2 } from 'lucide-react';
 import { api, ADMIN_TOKEN_KEY } from '../lib/api.js';
 import { useCatalog } from '../context/CatalogContext.jsx';
@@ -8,7 +8,8 @@ import { Logo } from '../components/Header.jsx';
 import { formatPrice } from '../../shared/products.js';
 import { AUDIENCES, PRODUCT_CATEGORIES, SUBCATEGORIES } from '../../shared/taxonomy.js';
 
-function AdminLogin({ onLogin }) {
+export function AdminLogin() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -19,7 +20,7 @@ function AdminLogin({ onLogin }) {
     try {
       const { token } = await api.admin.login(form);
       localStorage.setItem(ADMIN_TOKEN_KEY, token);
-      onLogin();
+      navigate('/admin', { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -239,7 +240,16 @@ const TABS = [
 export default function Admin() {
   const { products, refresh } = useCatalog();
   const { notify } = useStore();
-  const [authed, setAuthed] = useState(() => !!localStorage.getItem(ADMIN_TOKEN_KEY));
+  const navigate = useNavigate();
+  const [authed, setAuthed] = useState(false);
+  const denied = useRef(false);
+  const deny = useCallback(() => {
+    if (denied.current) return;
+    denied.current = true;
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
+    notify('Access Denied: this area is for FitStyle staff only.');
+    navigate('/', { replace: true });
+  }, [navigate, notify]);
   const [tab, setTab] = useState('dashboard');
   const [stats, setStats] = useState(null);
   const [offers, setOffers] = useState({ codes: [], banners: [], saleTags: {} });
@@ -250,10 +260,9 @@ export default function Admin() {
       setStats(s);
       setOffers(o);
     } catch {
-      localStorage.removeItem(ADMIN_TOKEN_KEY);
-      setAuthed(false);
+      deny();
     }
-  }, []);
+  }, [deny]);
 
   const reload = useCallback(() => {
     load();
@@ -261,19 +270,20 @@ export default function Admin() {
   }, [load, refresh]);
 
   useEffect(() => {
-    if (!authed) return;
+    if (!localStorage.getItem(ADMIN_TOKEN_KEY)) {
+      deny();
+      return;
+    }
     Promise.all([api.admin.stats(), api.admin.offers()])
       .then(([s, o]) => {
         setStats(s);
         setOffers(o);
+        setAuthed(true);
       })
-      .catch(() => {
-        localStorage.removeItem(ADMIN_TOKEN_KEY);
-        setAuthed(false);
-      });
-  }, [authed]);
+      .catch(deny);
+  }, [deny]);
 
-  if (!authed) return <AdminLogin onLogin={() => setAuthed(true)} />;
+  if (!authed) return <div className="grid min-h-screen place-items-center bg-cream text-sm text-ink/50" data-testid="admin-checking">Checking access…</div>;
 
   const logout = async () => {
     try {
@@ -282,7 +292,7 @@ export default function Admin() {
       // token already invalid
     }
     localStorage.removeItem(ADMIN_TOKEN_KEY);
-    setAuthed(false);
+    navigate('/admin/login', { replace: true });
   };
 
   return (

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import AuthModal from './components/AuthModal.jsx';
-import Admin from './pages/Admin.jsx';
+import Admin, { AdminLogin } from './pages/Admin.jsx';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import Toasts from './components/Toasts.jsx';
@@ -28,7 +28,10 @@ export default function App() {
     return (
       <>
         <ScrollToTop />
-        <Admin />
+        <Routes>
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/*" element={<Admin />} />
+        </Routes>
         <Toasts />
       </>
     );

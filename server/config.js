@@ -6,7 +6,8 @@ export function getConfig(env = process.env) {
     // Demo JSON database. Vercel only allows writes to /tmp (reset on cold starts).
     dataFile: env.DATA_FILE ?? (env.VERCEL ? '/tmp/fitstyle-data/db.json' : 'data/db.json'),
     adminEmail: (env.ADMIN_EMAIL || 'admin@fitstyle.ai').toLowerCase(),
-    adminPassword: env.ADMIN_PASSWORD || 'admin123',
+    // Demo admin password only outside production; on Vercel/production admin login is off until ADMIN_PASSWORD is set.
+    adminPassword: env.ADMIN_PASSWORD || (env.NODE_ENV === 'production' || env.VERCEL ? null : 'admin123'),
     tryOnProvider,
     visionProvider,
     hfToken: env.HF_TOKEN || undefined,

@@ -246,3 +246,10 @@ test('cross-category pairings and optional Try-On with Current Look', async ({ p
   await expect(builder.getByText('Added to look')).toHaveCount(0);
   await shot(page, '09-look-builder');
 });
+
+test('signed-in customers cannot open the admin portal', async ({ page }) => {
+  await page.goto('/admin');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByText('Access Denied')).toBeVisible();
+  await expect(page.getByTestId('admin-dashboard')).toHaveCount(0);
+});

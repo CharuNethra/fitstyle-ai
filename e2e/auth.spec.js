@@ -49,7 +49,13 @@ test('guest browses and wishlists; cart, try-on and checkout prompt for login', 
 });
 
 test('admin portal: login, dashboard, product CRUD and offers', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('a[href^="/admin"]')).toHaveCount(0);
+  await expect(page.getByText(/admin/i)).toHaveCount(0);
   await page.goto('/admin');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByText('Access Denied')).toBeVisible();
+  await page.goto('/admin/login');
   await expect(page.getByTestId('admin-login')).toBeVisible();
   await page.getByTestId('admin-email').fill('admin@fitstyle.ai');
   await page.getByTestId('admin-password').fill('wrong');

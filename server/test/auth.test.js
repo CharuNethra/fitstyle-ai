@@ -29,7 +29,11 @@ test('guests cannot run a try-on', async () => {
 
 test('admin manages products and offers; users cannot', async () => {
   const user = await request(app).post('/api/auth/signup').send({ name: 'U', email: 'u@example.com', password: 'secret1' });
-  await request(app).get('/api/admin/stats').set('Authorization', `Bearer ${user.body.token}`).expect(401);
+  await request(app).get('/api/admin/stats').set('Authorization', `Bearer ${user.body.token}`).expect(403);
+  await request(app).get('/api/admin/stats').expect(401);
+  await request(app).post('/api/admin/products').set('Authorization', `Bearer ${user.body.token}`).send({ name: 'X', price: 1 }).expect(403);
+  await request(app).post('/api/admin/offers/codes').send({ code: 'HACK', percent: 90 }).expect(401);
+  await request(app).put('/api/admin/products/noir-column-gown').set('Authorization', 'Bearer forged').send({ price: 1 }).expect(401);
   await request(app).post('/api/admin/login').send({ email: 'admin@fitstyle.ai', password: 'nope' }).expect(401);
   const { body } = await request(app).post('/api/admin/login').send({ email: 'admin@fitstyle.ai', password: 'admin123' }).expect(200);
   const admin = `Bearer ${body.token}`;
@@ -136,4 +140,12 @@ test('delivery check, quotes and checkout with wallet, codes and payment methods
   assert.equal(stock, 23);
   const stats = await request(app).get('/api/admin/stats').set('Authorization', `Bearer ${admin.body.token}`).expect(200);
   assert.ok(stats.body.orders >= 2);
+});
+
+test('admin credentials come from env; production has no default password', async () => {
+  const { getConfig } = await import('../config.js');
+  assert.equal(getConfig({ VERCEL: '1' }).adminPassword, null);
+  assert.equal(getConfig({ NODE_ENV: 'production' }).adminPassword, null);
+  assert.equal(getConfig({ VERCEL: '1', ADMIN_PASSWORD: 'S3cret!' }).adminPassword, 'S3cret!');
+  assert.equal(getConfig({}).adminPassword, 'admin123');
 });
