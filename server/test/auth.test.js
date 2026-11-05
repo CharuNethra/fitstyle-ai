@@ -64,3 +64,13 @@ test('admin manages products and offers; users cannot', async () => {
   assert.ok(stats.activeUsers >= 1);
   assert.equal(stats.postedOffers, 2);
 });
+
+test('personal-photo try-on is refused for intimate wear', async () => {
+  const user = await request(app).post('/api/auth/signup').send({ name: 'I', email: 'intimates@example.com', password: 'secret1' }).expect(201);
+  const res = await request(app)
+    .post('/api/try-on')
+    .set('Authorization', `Bearer ${user.body.token}`)
+    .field('productId', 'blush-lace-bralette')
+    .expect(403);
+  assert.match(res.body.error, /disabled for intimate wear/);
+});

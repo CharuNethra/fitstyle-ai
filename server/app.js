@@ -9,6 +9,7 @@ import { createStore } from './store.js';
 import { listProducts, findProduct } from './catalog.js';
 import { authenticate, authRoutes, requireUser } from './routes/auth.js';
 import { adminRoutes } from './routes/admin.js';
+import { INTIMATES_MESSAGE, isIntimate } from '../shared/taxonomy.js';
 import { normalizePhoto, dataUrlToBuffer } from './services/imageUtils.js';
 import { runTryOn } from './services/tryOn.js';
 import { calculateMatch, stylingSuggestions } from './services/stylist.js';
@@ -71,6 +72,7 @@ export function createApp(config, store = createStore(config.dataFile)) {
 
   app.post('/api/try-on', requireUser, upload.single('photo'), async (req, res) => {
     const product = requireProduct(req.body?.productId);
+    if (isIntimate(product)) throw new HttpError(403, INTIMATES_MESSAGE);
     let raw = req.file?.buffer;
     if (!raw && req.body?.photo) raw = dataUrlToBuffer(req.body.photo);
     if (!raw) throw new HttpError(400, 'A full-body "photo" upload is required');

@@ -4,7 +4,8 @@ import {
   Check, Download, Footprints, Gem, Heart, Info, LoaderCircle, RefreshCw, Scissors, ShoppingBag, Sparkles, WandSparkles,
 } from 'lucide-react';
 import { formatPrice } from '../../shared/products.js';
-import { AUDIENCES } from '../../shared/taxonomy.js';
+import { AUDIENCES, isIntimate } from '../../shared/taxonomy.js';
+import SafetyNotice from '../components/SafetyNotice.jsx';
 import { useCatalog } from '../context/CatalogContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import ProductImage from '../components/ProductImage.jsx';
@@ -25,7 +26,7 @@ const PROVIDER_LABEL = { mock: 'FitStyle preview engine', huggingface: 'Hugging 
 function OutfitPicker({ selectedId, onSelect }) {
   const { products: PRODUCTS } = useCatalog();
   const [cat, setCat] = useState('All');
-  const list = PRODUCTS.filter((p) => p.category === 'Dresses' && (cat === 'All' || p.audience === cat));
+  const list = PRODUCTS.filter((p) => p.category === 'Dresses' && !isIntimate(p) && (cat === 'All' || p.audience === cat));
   return (
     <div>
       <div className="flex flex-wrap gap-2">
@@ -171,11 +172,18 @@ export default function TryOn() {
 
           <section className="card p-6">
             <h2 className="flex items-center gap-2 font-sans text-sm font-semibold uppercase tracking-widest text-ink/50"><span className="grid h-6 w-6 place-items-center rounded-full bg-ink text-xs text-white">2</span>Upload your photo</h2>
-            <div className="mt-4"><PhotoDropzone file={photo} onChange={changePhoto} onError={setError} /></div>
+            {isIntimate(product) ? (
+              <div className="mt-4 space-y-4">
+                <SafetyNotice compact />
+                <ProductImage product={product} className="mx-auto aspect-[3/4] max-w-xs rounded-2xl" />
+              </div>
+            ) : (
+              <div className="mt-4"><PhotoDropzone file={photo} onChange={changePhoto} onError={setError} /></div>
+            )}
             <p className="mt-3 flex items-start gap-2 text-xs text-ink/50"><Info size={14} className="mt-0.5 shrink-0" />Best results: stand facing the camera, arms relaxed, plain background, good lighting. Photos are processed only to generate your try-on.</p>
           </section>
 
-          <button onClick={() => requireAuth(runTryOn, 'Log in or sign up to use the Virtual Try-On.')} disabled={!photo || busy} className="btn-gold w-full py-4 text-base" data-testid="try-on-button">
+          <button onClick={() => requireAuth(runTryOn, 'Log in or sign up to use the Virtual Try-On.')} disabled={!photo || busy || isIntimate(product)} className="btn-gold w-full py-4 text-base" data-testid="try-on-button">
             {busy ? <LoaderCircle size={18} className="animate-spin" /> : <WandSparkles size={18} />}
             {busy ? 'Creating your look…' : result ? 'Try On Again' : 'Try On'}
           </button>

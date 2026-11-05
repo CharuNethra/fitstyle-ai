@@ -104,3 +104,16 @@ test('admin portal: login, dashboard, product CRUD and offers', async ({ page })
   await page.getByTestId('row-e2e-silk-saree').getByRole('button', { name: /Delete/ }).click();
   await expect(page.getByTestId('row-e2e-silk-saree')).toHaveCount(0);
 });
+
+test('intimates show the safety notice and block personal-photo try-on', async ({ page }) => {
+  await page.goto('/shop?category=Dresses&style=Intimates+%2F+Innerwear');
+  await page.getByRole('button', { name: 'Continue as Guest' }).click();
+  await expect(page.getByTestId('safety-notice')).toContainText('Safety & Privacy Guidelines');
+  await expect(page.getByTestId('mannequin-preview').first()).toBeVisible();
+  await page.goto('/product/blush-lace-bralette');
+  await expect(page.getByTestId('safety-notice')).toContainText('personal photo virtual try-ons are disabled for intimate wear');
+  await expect(page.getByTestId('try-on-now')).toHaveCount(0);
+  await page.goto('/try-on?product=blush-lace-bralette');
+  await expect(page.getByTestId('intimates-banner')).toHaveText('For safety, privacy, and model alignment standards, personal photo virtual try-ons are disabled for intimate wear.');
+  await expect(page.getByTestId('try-on-button')).toBeDisabled();
+});

@@ -5,6 +5,8 @@ import { formatPrice } from '../../shared/products.js';
 import { useCatalog } from '../context/CatalogContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import ProductImage from '../components/ProductImage.jsx';
+import SafetyNotice from '../components/SafetyNotice.jsx';
+import { isIntimate } from '../../shared/taxonomy.js';
 import ProductCard from '../components/ProductCard.jsx';
 import { useStore } from '../context/StoreContext.jsx';
 import NotFound from './NotFound.jsx';
@@ -26,7 +28,10 @@ export default function ProductDetail() {
     <div className="container-luxe py-10">
       <Link to="/shop" className="inline-flex items-center gap-1 text-sm text-ink/60 hover:text-ink"><ChevronLeft size={16} />Back to shop</Link>
       <div className="mt-6 grid gap-12 lg:grid-cols-2">
-        <ProductImage product={product} className="aspect-[4/5] rounded-[2rem]" />
+        <div className="space-y-4">
+          <ProductImage product={product} className="aspect-[4/5] rounded-[2rem]" eager />
+          {isIntimate(product) && <SafetyNotice />}
+        </div>
         <div className="lg:py-6">
           <div className="flex flex-wrap gap-2">
             {product.categories.map((c) => <Link key={c} to={`/shop?category=${c}`} className="chip hover:border-ink/40">{c}</Link>)}
@@ -57,9 +62,11 @@ export default function ProductDetail() {
           </div>
 
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+{isIntimate(product) ? null : (
             <button onClick={() => requireAuth(() => navigate(`/try-on?product=${product.id}`), 'Log in or sign up to use the Virtual Try-On.')} className="btn-gold flex-1" data-testid="try-on-now">
               <WandSparkles size={16} />Try On Now
             </button>
+            )}
             <button
               onClick={() => requireAuth(() => {
                 addToCart(product.id, size);

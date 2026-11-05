@@ -9,3 +9,6 @@ export const SUBCATEGORIES = {
 };
 
 export const isIntimate = (p) => p?.subCategory === INTIMATES;
+
+export const INTIMATES_MESSAGE =
+  'For safety, privacy, and model alignment standards, personal photo virtual try-ons are disabled for intimate wear.';

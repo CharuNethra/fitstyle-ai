@@ -4,6 +4,8 @@ import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { AUDIENCES, PRODUCT_CATEGORIES, SUBCATEGORIES } from '../../shared/taxonomy.js';
 import { useCatalog } from '../context/CatalogContext.jsx';
 import ProductCard from '../components/ProductCard.jsx';
+import SafetyNotice from '../components/SafetyNotice.jsx';
+import { INTIMATES } from '../../shared/taxonomy.js';
 import { useStore } from '../context/StoreContext.jsx';
 
 const SORTS = {
@@ -107,6 +109,8 @@ export default function Shop() {
           </label>
         </div>
       </div>
+
+      {style === INTIMATES && <SafetyNotice className="mt-6" />}
 
       {q && (
         <div className="mt-6 flex items-center gap-2 text-sm text-ink/60">

@@ -3,6 +3,7 @@ import { Heart, Star, WandSparkles } from 'lucide-react';
 import { formatPrice } from '../../shared/products.js';
 import { useStore } from '../context/StoreContext.jsx';
 import ProductImage from './ProductImage.jsx';
+import { isIntimate } from '../../shared/taxonomy.js';
 
 export default function ProductCard({ product, badge, note }) {
   const { isWishlisted, toggleWishlist, notify } = useStore();
@@ -32,12 +33,12 @@ export default function ProductCard({ product, badge, note }) {
         >
           <Heart size={16} className={saved ? 'fill-gold text-gold' : 'text-ink/70'} />
         </button>
-        <button
+        {product.category === 'Dresses' && !isIntimate(product) && <button
           onClick={() => navigate(`/try-on?product=${product.id}`)}
           className="absolute inset-x-3 bottom-3 flex translate-y-2 items-center justify-center gap-2 rounded-full bg-white/95 py-2.5 text-xs font-semibold opacity-0 shadow-sm transition group-hover:translate-y-0 group-hover:opacity-100 focus:translate-y-0 focus:opacity-100"
         >
           <WandSparkles size={14} /> Virtual Try-On
-        </button>
+        </button>}
       </div>
       <div className="mt-3 flex items-start justify-between gap-3 px-1">
         <div>
