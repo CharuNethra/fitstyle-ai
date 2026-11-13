@@ -9,7 +9,7 @@ async function handle(res) {
     const fallback = body
       ? `Request failed (${res.status})`
       : `The FitStyle API is not reachable (${res.status}). Make sure the backend server is running.`;
-    throw new Error(body?.error || fallback);
+    throw Object.assign(new Error(body?.error || fallback), { status: res.status, retryable: !!body?.retryable });
   }
   return body;
 }

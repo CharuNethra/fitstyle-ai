@@ -106,3 +106,24 @@ test('unknown api routes 404 as JSON', async () => {
   const res = await request(app).get('/api/nope').expect(404);
   assert.equal(res.body.error, 'Not found');
 });
+
+test('when every AI provider fails, try-on returns a retryable 503 instead of a fake composite', async () => {
+  const offline = createApp(getConfig({ TRYON_PROVIDER: 'huggingface', HF_TRYON_SPACES: ' ', HF_DRESS_SPACE: '', DATA_FILE: '' }));
+  const user = await request(offline).post('/api/auth/signup').send({ name: 'O', email: 'o@example.com', password: 'secret1' });
+  const res = await request(offline)
+    .post('/api/try-on').set('Authorization', `Bearer ${user.body.token}`)
+    .field('productId', 'aurelia-satin-slip')
+    .attach('photo', samplePhoto, { filename: 'me.svg', contentType: 'image/svg+xml' })
+    .expect(503);
+  assert.equal(res.body.retryable, true);
+  assert.match(res.body.error, /try again/);
+  assert.equal(res.body.image, undefined);
+});
+
+test('provider chain falls back to Hugging Face and never to the mock', async () => {
+  const { providerChain } = await import('../services/tryOn.js');
+  assert.deepEqual(providerChain(getConfig({ GEMINI_API_KEY: 'k' })), ['gemini', 'huggingface']);
+  assert.deepEqual(providerChain(getConfig({})), ['huggingface']);
+  assert.deepEqual(providerChain(getConfig({ TRYON_PROVIDER: 'huggingface', GEMINI_API_KEY: 'k' })), ['huggingface', 'gemini']);
+  assert.deepEqual(providerChain(getConfig({ TRYON_PROVIDER: 'mock' })), ['mock']);
+});

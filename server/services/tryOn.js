@@ -6,6 +6,7 @@ import { garmentSvg, GARMENT_SHAPES } from '../../shared/garments.js';
 import { analyzePhoto, bufferToDataUrl } from './imageUtils.js';
 import { huggingFaceTryOn } from './hfTryOn.js';
 import { geminiAddItem, geminiTryOn } from './geminiTryOn.js';
+import { HttpError } from '../http.js';
 
 const ONE_PIECE = new Set(['dress', 'gown']);
 const PUBLIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
@@ -34,7 +35,7 @@ export async function garmentPng(product, width = 768) {
     .toBuffer();
 }
 
-/** Local, key-free try-on: localises the subject and drapes the garment illustration over the torso. */
+/** Offline stub for automated tests only (TRYON_PROVIDER=mock); never used as a fallback for real try-ons. */
 export async function mockTryOn(photo, product) {
   const meta = await sharp(photo).metadata();
   const W = meta.width;
@@ -84,16 +85,10 @@ export async function mockTryOn(photo, product) {
     .linear([1, 1, 1, 0.35], [0, 0, 0, 0])
     .toBuffer();
 
-  const badgeW = Math.min(W, 340);
-  const badge = Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${badgeW}" height="34"><rect x="10" y="0" rx="12" width="${badgeW - 20}" height="26" fill="rgba(20,20,20,0.6)"/><text x="${badgeW / 2}" y="18" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#fff" text-anchor="middle">FitStyle AI • Preview try-on (mock pipeline)</text></svg>`,
-  );
-
   const out = await sharp(photo)
     .composite([
       { input: shadow, left: Math.min(W - 1, left + Math.round(scale * 2)), top: Math.min(H - 1, top + Math.round(scale * 3)) },
       { input: garment, left, top },
-      { input: badge, gravity: 'south' },
     ])
     .jpeg({ quality: 88 })
     .toBuffer();
@@ -161,24 +156,42 @@ async function geminiImageTryOn(photo, product, config) {
 const PROVIDERS = { gemini: geminiImageTryOn, huggingface: hfTryOn, fal: falTryOn, fashn: fashnTryOn };
 const PROVIDER_NAMES = { gemini: 'Gemini', huggingface: 'Hugging Face', fal: 'Fal.ai', fashn: 'FASHN' };
 
+export function providerChain(config) {
+  if (config.tryOnProvider === 'mock') return ['mock'];
+  const chain = [config.tryOnProvider, 'huggingface', config.geminiKey && 'gemini'];
+  return [...new Set(chain.filter((p) => PROVIDERS[p]))];
+}
+
+export function tryOnUnavailable(errors) {
+  const quota = errors.some((e) => e.quota || /quota|429/i.test(e.message));
+  return new HttpError(
+    503,
+    quota
+      ? 'Our AI fitting room has reached its usage limit for now. Please try again in a few minutes.'
+      : 'Our AI fitting room is busy right now. Please try again in a moment.',
+    { retryable: true },
+  );
+}
+
+// Tries each real provider in turn within one time budget. If all fail, the client gets a
+// retryable 503 instead of a fake composite.
 export async function runTryOn(photo, product, config) {
-  const fn = PROVIDERS[config.tryOnProvider];
-  if (fn) {
+  const chain = providerChain(config);
+  if (chain[0] === 'mock') return { ...(await mockTryOn(photo, product)), provider: 'mock' };
+  const deadline = Date.now() + (config.tryOnBudgetMs ?? 240_000);
+  const errors = [];
+  for (const name of chain) {
+    const remaining = deadline - Date.now();
+    if (remaining < 5_000) break;
     try {
-      const result = await fn(photo, product, config);
-      return { ...result, provider: config.tryOnProvider };
+      const cfg = { ...config, tryOnTimeoutMs: Math.min(config.tryOnTimeoutMs ?? 120_000, remaining), deadline };
+      return { ...(await PROVIDERS[name](photo, product, cfg)), provider: name };
     } catch (err) {
-      console.warn(`[try-on] ${config.tryOnProvider} failed, using mock pipeline:`, err.message);
-      const result = await mockTryOn(photo, product);
-      const name = PROVIDER_NAMES[config.tryOnProvider] || config.tryOnProvider;
-      const warning = err.quota
-        ? `${name} try-on quota reached — showing preview pipeline result.`
-        : `${name} try-on unavailable — showing preview pipeline result.`;
-      return { ...result, provider: 'mock', warning };
+      console.warn(`[try-on] ${PROVIDER_NAMES[name]} failed: ${String(err.message).slice(0, 300)}`);
+      errors.push(err);
     }
   }
-  const result = await mockTryOn(photo, product);
-  return { ...result, provider: 'mock' };
+  throw tryOnUnavailable(errors);
 }
 
 async function mockAddItem(photo, product) {
@@ -197,15 +210,15 @@ async function mockAddItem(photo, product) {
 }
 
 // Adds one recommended piece to an existing look. Dresses re-run the main try-on;
-// footwear and accessories are layered by Gemini, or shown as a styled pairing preview.
+// footwear and accessories are layered by Gemini (or shown as a labelled pairing preview when no Gemini key is set).
 export async function runLayerTryOn(photo, product, config) {
   if (product.category === 'Dresses') return runTryOn(photo, product, config);
   if (config.tryOnProvider === 'gemini' && config.geminiKey) {
     try {
       return { ...(await geminiAddItem(photo, await garmentPng(product), product, config)), provider: 'gemini' };
     } catch (err) {
-      console.warn('[try-on] Gemini layering failed, using pairing preview:', err.message);
-      return { ...(await mockAddItem(photo, product)), provider: 'mock', warning: 'Gemini styling is unavailable — showing a styled pairing preview.' };
+      console.warn('[try-on] Gemini layering failed:', err.message);
+      throw tryOnUnavailable([err]);
     }
   }
   return { ...(await mockAddItem(photo, product)), provider: 'mock', warning: 'Footwear and accessories are layered by Gemini — showing a styled pairing preview.' };

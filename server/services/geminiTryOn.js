@@ -87,8 +87,11 @@ async function generateWithFallback(parts, person, config) {
   const models = [...new Set([config.geminiImageModel, ...GEMINI_IMAGE_FALLBACK_MODELS].filter(Boolean))];
   let lastErr;
   for (const model of models) {
+    const remaining = config.deadline ? config.deadline - Date.now() : Infinity;
+    if (remaining < 5_000) break;
     try {
-      const result = await geminiImageRequest(model, parts, config);
+      const timeout = Math.min(config.tryOnTimeoutMs ?? 120_000, remaining);
+      const result = await geminiImageRequest(model, parts, { ...config, tryOnTimeoutMs: timeout });
       const restored = await restorePersonFrame(result, person.frame);
       return { image: bufferToDataUrl(restored), model };
     } catch (err) {
@@ -98,5 +101,5 @@ async function generateWithFallback(parts, person, config) {
       console.warn(`[try-on] ${model} unavailable (${timedOut ? 'timeout' : err.message.slice(0, 120)}), trying next`);
     }
   }
-  throw lastErr;
+  throw lastErr || new Error('Gemini try-on ran out of time');
 }

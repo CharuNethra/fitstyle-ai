@@ -27,6 +27,8 @@ export function getConfig(env = process.env) {
     geminiModel: env.GEMINI_MODEL || 'gemini-3-flash-preview',
     geminiImageModel: env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image',
     // Vercel functions stop at 60 s, so leave time for a model fallback and the mock.
-    tryOnTimeoutMs: Number(env.TRYON_TIMEOUT_MS) || (env.VERCEL ? 25_000 : 120_000),
+    // Per-attempt limit, and the total budget across retries/providers (Vercel functions allow 300 s).
+    tryOnTimeoutMs: Number(env.TRYON_TIMEOUT_MS) || 120_000,
+    tryOnBudgetMs: Number(env.TRYON_BUDGET_MS) || 240_000,
   };
 }

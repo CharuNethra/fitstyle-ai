@@ -78,26 +78,41 @@ export async function huggingFaceTryOn(photo, garment, product, category, config
   const person = await preparePerson(photo);
   const cleanGarment = await prepareGarment(garment);
   const errors = [];
+  const deadline = config.deadline ?? Date.now() + (config.tryOnTimeoutMs ?? 180_000);
   for (const space of spacesFor(category, config)) {
-    try {
-      const url = await withTimeout(
-        runSpace(space, person.image, cleanGarment, product, category, config),
-        config.tryOnTimeoutMs ?? 180_000,
-        space,
-      );
-      if (!url) throw new Error('no image returned');
-      const headers = config.hfToken ? { Authorization: `Bearer ${config.hfToken}` } : {};
-      const img = await fetch(url, { headers, signal: AbortSignal.timeout(30_000) });
-      if (!img.ok) throw new Error(`could not download result (${img.status})`);
-      const restored = await restorePersonFrame(Buffer.from(await img.arrayBuffer()), person.frame);
-      return { image: bufferToDataUrl(restored), model: space };
-    } catch (err) {
-      const msg = errorText(err);
-      console.warn(`[try-on] ${space} failed: ${msg.slice(0, 200)}`);
-      errors.push({ space, msg });
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      const remaining = deadline - Date.now();
+      if (remaining < 5_000) break;
+      try {
+        return await runOnce(space, person, cleanGarment, product, category, config, Math.min(config.tryOnTimeoutMs ?? 180_000, remaining));
+      } catch (err) {
+        const msg = errorText(err);
+        console.warn(`[try-on] ${space} attempt ${attempt} failed: ${msg.slice(0, 200)}`);
+        errors.push({ space, msg });
+        // ZeroGPU cold starts and queue hiccups usually clear on a second try; quota and bad input do not.
+        if (!TRANSIENT.test(msg) || /quota/i.test(msg)) break;
+        clients.delete(space);
+        await new Promise((r) => setTimeout(r, 3_000));
+      }
     }
   }
   const err = new Error(errors.map((e) => `${e.space}: ${e.msg.slice(0, 120)}`).join(' | ') || 'no spaces configured');
   err.quota = errors.some((e) => /quota/i.test(e.msg));
   throw err;
+}
+
+const TRANSIENT = /timed out|timeout|queue|starting|sleeping|busy|unavailable|50[234]|fetch failed|ECONNRESET|socket|GPU task aborted|connection/i;
+
+async function runOnce(space, person, cleanGarment, product, category, config, ms) {
+  const url = await withTimeout(
+    runSpace(space, person.image, cleanGarment, product, category, config),
+    ms,
+    space,
+  );
+  if (!url) throw new Error('no image returned');
+  const headers = config.hfToken ? { Authorization: `Bearer ${config.hfToken}` } : {};
+  const img = await fetch(url, { headers, signal: AbortSignal.timeout(30_000) });
+  if (!img.ok) throw new Error(`could not download result (${img.status})`);
+  const restored = await restorePersonFrame(Buffer.from(await img.arrayBuffer()), person.frame);
+  return { image: bufferToDataUrl(restored), model: space };
 }

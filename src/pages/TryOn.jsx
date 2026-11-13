@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  Check, Download, Footprints, Gem, Heart, Info, LoaderCircle, RefreshCw, Scissors, ShoppingBag, Sparkles, WandSparkles,
+  Check, Download, Footprints, Gem, Heart, Info, LoaderCircle, RefreshCw, Scissors, ShoppingBag, Sparkles, WandSparkles, RotateCcw,
 } from 'lucide-react';
 import { formatPrice } from '../../shared/products.js';
 import { AUDIENCES, isIntimate } from '../../shared/taxonomy.js';
@@ -123,6 +123,7 @@ export default function TryOn() {
 
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState(null);
+  const [canRetry, setCanRetry] = useState(false);
   const [stage, setStage] = useState(null);
   const [result, setResult] = useState(null);
   const [match, setMatch] = useState(null);
@@ -136,6 +137,7 @@ export default function TryOn() {
   const addToLook = async (item) => {
     setLayering(item.id);
     setError(null);
+    setCanRetry(false);
     try {
       const out = await api.layerTryOn(item.id, result.image);
       setHistory((h) => [...h, { image: result.image, layers }]);
@@ -183,6 +185,7 @@ export default function TryOn() {
     if (!photo) return;
     const id = ++runId.current;
     setError(null);
+    setCanRetry(false);
     setResult(null);
     setLayers([]);
     setHistory([]);
@@ -207,6 +210,7 @@ export default function TryOn() {
     } catch (err) {
       if (id !== runId.current) return;
       setError(err.message);
+      setCanRetry(err.retryable || err.status >= 500 || !err.status);
       setStage(null);
     }
   };
@@ -245,7 +249,7 @@ export default function TryOn() {
                 <ProductImage product={product} className="mx-auto aspect-[3/4] max-w-xs rounded-2xl" />
               </div>
             ) : (
-              <div className="mt-4"><PhotoDropzone file={photo} onChange={changePhoto} onError={setError} /></div>
+              <div className="mt-4"><PhotoDropzone file={photo} onChange={changePhoto} onError={(m) => { setError(m); setCanRetry(false); }} /></div>
             )}
             <p className="mt-3 flex items-start gap-2 text-xs text-ink/50"><Info size={14} className="mt-0.5 shrink-0" />Best results: stand facing the camera, arms relaxed, plain background, good lighting. Photos are processed only to generate your try-on.</p>
           </section>
@@ -255,7 +259,16 @@ export default function TryOn() {
             {busy ? 'Creating your look…' : result ? 'Try On Again' : 'Try On'}
           </button>
           {!photo && <p className="-mt-3 text-center text-xs text-ink/50">Upload a photo to enable Try On</p>}
-          {error && <p role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700" data-testid="try-on-error">{error}</p>}
+          {error && (
+            <div role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700" data-testid="try-on-error">
+              <p>{error}</p>
+              {canRetry && !busy && (
+                <button type="button" onClick={runTryOn} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-red-700 px-4 py-2 text-xs font-semibold text-white hover:bg-red-800" data-testid="retry-try-on">
+                  <RotateCcw size={14} /> Retry Try-On
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <section ref={resultRef} className="card flex min-h-[32rem] flex-col p-6 scroll-mt-24" aria-live="polite">
