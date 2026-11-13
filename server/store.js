@@ -8,6 +8,7 @@ const EMPTY = () => ({
   catalog: { added: [], updated: {}, removed: [] },
   offers: { codes: [], banners: [], saleTags: {} },
   orders: [],
+  resets: {},
 });
 
 /** Tiny JSON-file database for the demo (users, sessions, catalogue edits, offers, orders). */

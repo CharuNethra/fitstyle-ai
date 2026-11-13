@@ -13,6 +13,7 @@ import Cart from './pages/Cart.jsx';
 import Wishlist from './pages/Wishlist.jsx';
 import ForYou from './pages/ForYou.jsx';
 import NotFound from './pages/NotFound.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/for-you" element={<ForYou />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

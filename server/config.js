@@ -8,6 +8,8 @@ export function getConfig(env = process.env) {
     adminEmail: (env.ADMIN_EMAIL || 'admin@fitstyle.ai').toLowerCase(),
     // Demo admin password only outside production; on Vercel/production admin login is off until ADMIN_PASSWORD is set.
     adminPassword: env.ADMIN_PASSWORD || (env.NODE_ENV === 'production' || env.VERCEL ? null : 'admin123'),
+    // Dev/demo only: return the simulated reset-email link to the browser (never in production/Vercel).
+    showResetLink: !(env.NODE_ENV === 'production' || env.VERCEL),
     tryOnProvider,
     visionProvider,
     hfToken: env.HF_TOKEN || undefined,

@@ -149,3 +149,40 @@ test('admin credentials come from env; production has no default password', asyn
   assert.equal(getConfig({ VERCEL: '1', ADMIN_PASSWORD: 'S3cret!' }).adminPassword, 'S3cret!');
   assert.equal(getConfig({}).adminPassword, 'admin123');
 });
+
+test('forgot password: generic reply, single-use expiring token, old sessions revoked', async () => {
+  const signup = await request(app).post('/api/auth/signup').send({ name: 'F', email: 'forgot@example.com', password: 'oldpass1' }).expect(201);
+  await request(app).post('/api/auth/forgot-password').send({ email: '' }).expect(400);
+  await request(app).post('/api/auth/forgot-password').send({ email: 'not-an-email' }).expect(400);
+  const unknown = await request(app).post('/api/auth/forgot-password').send({ email: 'nobody@example.com' }).expect(200);
+  const known = await request(app).post('/api/auth/forgot-password').send({ email: 'Forgot@Example.com' }).expect(200);
+  assert.equal(unknown.body.message, known.body.message);
+  assert.equal(unknown.body.previewUrl, undefined);
+  const token = new URL(known.body.previewUrl, 'http://x').searchParams.get('token');
+  assert.match(token, /^[a-f0-9]{64}$/);
+
+  await request(app).post('/api/auth/reset-password').send({ token: 'f'.repeat(64), password: 'newpass1' }).expect(400);
+  await request(app).post('/api/auth/reset-password').send({ token, password: '123' }).expect(400);
+  await request(app).post('/api/auth/reset-password').send({ token, password: 'newpass1' }).expect(200);
+  await request(app).post('/api/auth/reset-password').send({ token, password: 'again12' }).expect(400);
+  await request(app).get('/api/auth/me').set('Authorization', `Bearer ${signup.body.token}`).expect(401);
+  await request(app).post('/api/auth/login').send({ email: 'forgot@example.com', password: 'oldpass1' }).expect(401);
+  await request(app).post('/api/auth/login').send({ email: 'forgot@example.com', password: 'newpass1' }).expect(200);
+
+  const second = await request(app).post('/api/auth/forgot-password').send({ email: 'forgot@example.com' });
+  const first = await request(app).post('/api/auth/forgot-password').send({ email: 'forgot@example.com' });
+  const stale = new URL(second.body.previewUrl, 'http://x').searchParams.get('token');
+  await request(app).post('/api/auth/reset-password').send({ token: stale, password: 'newpass2' }).expect(400);
+  assert.ok(first.body.previewUrl);
+
+  const admin = await request(app).post('/api/auth/forgot-password').send({ email: 'admin@fitstyle.ai' }).expect(200);
+  assert.equal(admin.body.previewUrl, undefined);
+});
+
+test('reset links are never returned to the browser in production', async () => {
+  const prod = createApp(getConfig({ TRYON_PROVIDER: 'mock', DATA_FILE: '', VERCEL: '1', ADMIN_PASSWORD: 'x' }));
+  await request(prod).post('/api/auth/signup').send({ name: 'P', email: 'p@example.com', password: 'secret1' }).expect(201);
+  const res = await request(prod).post('/api/auth/forgot-password').send({ email: 'p@example.com' }).expect(200);
+  assert.equal(res.body.previewUrl, undefined);
+  assert.match(res.body.message, /If an account with that email exists/);
+});

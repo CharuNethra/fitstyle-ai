@@ -123,3 +123,32 @@ test('intimates show the safety notice and block personal-photo try-on', async (
   await expect(page.getByTestId('intimates-banner')).toHaveText('For safety, privacy, and model alignment standards, personal photo virtual try-ons are disabled for intimate wear.');
   await expect(page.getByTestId('try-on-button')).toBeDisabled();
 });
+
+test('forgot password: request link, reset, then log in with the new password', async ({ page, request }) => {
+  const email = `reset-${Date.now()}@example.com`;
+  await request.post('/api/auth/signup', { data: { name: 'Reset Me', email, password: 'oldpass1' } });
+  await page.goto('/');
+  await page.getByTestId('forgot-password').click();
+  await page.getByTestId('send-reset').click();
+  await expect(page.getByTestId('forgot-error')).toContainText('valid email');
+  await page.getByTestId('forgot-email').fill(email);
+  await page.getByTestId('send-reset').click();
+  await expect(page.getByTestId('forgot-success')).toContainText('If an account with that email exists');
+  await page.getByTestId('reset-preview-link').click();
+  await expect(page).toHaveURL(/\/reset-password\?token=/);
+  await expect(page.getByTestId('auth-modal')).toHaveCount(0);
+
+  await page.getByTestId('reset-password').fill('newpass1');
+  await page.getByTestId('reset-confirm').fill('different');
+  await page.getByTestId('reset-submit').click();
+  await expect(page.getByTestId('reset-error')).toContainText('do not match');
+  await page.getByTestId('reset-confirm').fill('newpass1');
+  await page.getByTestId('reset-submit').click();
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId('auth-reason')).toContainText('password has been updated');
+  await page.getByTestId('auth-email').fill(email);
+  await page.getByTestId('auth-password').fill('newpass1');
+  await page.getByTestId('auth-submit').click();
+  await expect(page.getByTestId('user-name')).toHaveText('Reset Me');
+});

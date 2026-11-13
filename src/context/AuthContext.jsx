@@ -19,7 +19,7 @@ export function AuthProvider({ children }) {
   const [guest, setGuest] = useState(() => localStorage.getItem(GUEST_KEY) === '1');
   // { reason } while the login modal is open; first-time visitors get the welcome prompt.
   const [prompt, setPrompt] = useState(() =>
-    !readUser() && localStorage.getItem(GUEST_KEY) !== '1' && !window.location.pathname.startsWith('/admin') ? { reason: null } : null,
+    !readUser() && localStorage.getItem(GUEST_KEY) !== '1' && !/^\/(admin|reset-password)/.test(window.location.pathname) ? { reason: null } : null,
   );
   const pending = useRef(null);
 
