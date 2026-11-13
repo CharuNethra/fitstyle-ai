@@ -2,7 +2,7 @@
 
 An AI-powered luxury clothing store: pick any outfit, upload a full-body photo, and FitStyle AI renders a **virtual try-on**, computes an **AI Match Score** with a "why it works" breakdown, and styles the **complete look** (hairstyles, accessories, footwear). Personalised dress recommendations are shown **only after explicit consent**.
 
-Runs fully out-of-the-box: with no API keys the backend uses a built-in mock AI pipeline (Sharp-based compositing + a rule-based stylist), so every flow works locally. Add keys to switch to real providers.
+Virtual try-on runs on Google Gemini and needs `GEMINI_API_KEY`. Without AI keys, the match score and styling use a built-in rule-based stylist, and the Try-On page shows a "busy" message instead of a result.
 
 ## Tech stack
 
@@ -10,7 +10,7 @@ Runs fully out-of-the-box: with no API keys the backend uses a built-in mock AI 
 | --- | --- |
 | Frontend | React 19 + Vite, React Router, Tailwind CSS, Lucide React |
 | Backend | Node.js + Express, Multer (uploads), Sharp (image processing) |
-| Virtual try-on | Google AI Studio Gemini image model (`gemini-3.1-flash-image`, default when `GEMINI_API_KEY` is set), free open-source IDM-VTON / OOTDiffusion on Hugging Face Spaces via `@gradio/client`, Fal.ai / FASHN (paid), or built-in mock |
+| Virtual try-on | Google AI Studio Gemini image model only (`gemini-3.1-flash-image`, falling back to `gemini-2.5-flash-image`) |
 | Match score & styling | OpenAI GPT-4o (vision) or Google Gemini, or built-in rule engine |
 | Tests | Node test runner + Supertest (API), Playwright (E2E) |
 
@@ -51,18 +51,11 @@ npm start                  # http://localhost:5001
 
 ## Adding AI API keys
 
-All keys are optional and go in **`.env`** at the project root (copy from [`.env.example`](.env.example)). Restart `npm run dev` after editing. The first configured provider in each group is used; if a provider call fails the server logs it and falls back to the mock so the UI never breaks.
+Keys go in **`.env`** at the project root (copy from [`.env.example`](.env.example)). Restart `npm run dev` after editing. Virtual try-on needs `GEMINI_API_KEY`. Match score and styling use the first configured vision provider and fall back to the built-in rule engine.
 
 ```dotenv
-# Virtual try-on (default: free Hugging Face Spaces, no key needed)
-TRYON_PROVIDER=                               # gemini (default with GEMINI_API_KEY) | huggingface | fal | fashn | mock
+# Virtual try-on (Gemini only)
 GEMINI_IMAGE_MODEL=gemini-3.1-flash-image     # try-on image model; falls back to gemini-2.5-flash-image
-HF_TOKEN=hf_...                               # optional, free: raises the ZeroGPU daily quota
-HF_TRYON_SPACES=yisol/IDM-VTON,Nymbo/Virtual-Try-On
-HF_DRESS_SPACE=levihsu/OOTDiffusion           # tried first for dresses/gowns
-FAL_KEY=...                                   # TRYON_PROVIDER=fal, https://fal.ai/dashboard/keys
-FAL_TRYON_MODEL=fal-ai/fashn/tryon/v1.6       # or fal-ai/kling/v1-5/kolors-virtual-try-on (Kling VTON)
-FASHN_API_KEY=...                             # https://app.fashn.ai/api (direct FASHN v1.6)
 
 # Match score + complete-look styling (vision LLM)
 OPENAI_API_KEY=...                            # https://platform.openai.com/api-keys
@@ -71,25 +64,17 @@ GEMINI_API_KEY=...                            # https://aistudio.google.com/app/
 GEMINI_MODEL=gemini-3-flash-preview          # falls back to other Gemini models on 503/429/timeouts
 ```
 
-### Free try-on on Hugging Face
+### Gemini try-on
 
-### Gemini try-on (default)
+[`server/services/geminiTryOn.js`](server/services/geminiTryOn.js) preprocesses both images (see below) and sends them with a try-on prompt to the Gemini image model from Google AI Studio (`GEMINI_IMAGE_MODEL`, default `gemini-3.1-flash-image`, falling back to `gemini-2.5-flash-image` and `gemini-3.1-flash-image-preview` on overload, rate limits or timeouts). If every model fails, the whole list is retried once after 2 s. The 3:4 result is cropped back to your photo's frame. Footwear and accessories added with "Try-On with Current Look" use the same models.
 
-When `GEMINI_API_KEY` is set and `TRYON_PROVIDER` is empty, [`server/services/geminiTryOn.js`](server/services/geminiTryOn.js) preprocesses both images (see below) and sends them with a try-on prompt to the Gemini image model from Google AI Studio (`GEMINI_IMAGE_MODEL`, default `gemini-3.1-flash-image`, falling back to `gemini-2.5-flash-image` on overload or rate limits). The 3:4 result is cropped back to your photo's frame. It handles dresses, tops and outerwear and takes ~10–30 s. Image generation counts against your AI Studio quota; when it is exhausted the page falls back to the preview pipeline with a notice.
+If Gemini is still rate-limited or busy after the retry, or `GEMINI_API_KEY` is missing, the API returns `503 {"error": "Our Try-on is busy right now, try again later", "retryable": true}` and the page shows that message with a **Try Again** button. No placeholder or composite image is ever shown. Image generation counts against your AI Studio quota.
 
-### Hugging Face try-on
-
-With `TRYON_PROVIDER=huggingface` (the default when no Gemini key is set), [`server/services/hfTryOn.js`](server/services/hfTryOn.js) preprocesses both images (see below), sends them to the public [IDM-VTON](https://huggingface.co/spaces/yisol/IDM-VTON) Space (mirror: `Nymbo/Virtual-Try-On`), and crops the result back to your photo's frame; dresses try [OOTDiffusion](https://huggingface.co/spaces/levihsu/OOTDiffusion)'s dress model first. A run takes ~20–60 s. Limits to know:
-
-- These Spaces run on ZeroGPU, which has a small **daily GPU quota per visitor/IP** when anonymous. Set a free `HF_TOKEN` to get a larger quota. When the quota is used up the app falls back to the mock preview and says so.
-- IDM-VTON only replaces **upper-body** garments; a dress sent to it comes back as a top. OOTDiffusion handles dresses, but it copies whatever is in the garment photo (e.g. a model's scarf or bag), so flat-lay or plain product shots give the cleanest results.
-- Public Spaces can be paused or busy; the next Space in the list is tried, then the mock.
-
-Where the keys are used: [`server/config.js`](server/config.js) (provider selection), [`server/services/tryOn.js`](server/services/tryOn.js) (Hugging Face / Fal.ai / FASHN), [`server/services/vision.js`](server/services/vision.js) (OpenAI / Gemini). Keys are only read on the server and never sent to the browser. `.env` is git-ignored.
+Where the keys are used: [`server/config.js`](server/config.js), [`server/services/tryOn.js`](server/services/tryOn.js) and [`server/services/geminiTryOn.js`](server/services/geminiTryOn.js) (try-on), [`server/services/vision.js`](server/services/vision.js) (OpenAI / Gemini styling). Keys are only read on the server and never sent to the browser. `.env` is git-ignored.
 
 ### Image preprocessing
 
-Before anything is sent to a Hugging Face Space, [`server/services/preprocess.js`](server/services/preprocess.js) normalises both inputs to the models' native 768x1024 (3:4) resolution:
+Before anything is sent to Gemini, [`server/services/preprocess.js`](server/services/preprocess.js) normalises both inputs to the models' native 768x1024 (3:4) resolution:
 
 - **Garment** (`prepareGarment`) – transparency is flattened onto white, the empty background around the garment is trimmed, and the garment is centred on a clean white 768x1024 canvas with a small margin.
 - **Person** (`preparePerson`) – the photo is auto-rotated, padded to 3:4 by repeating its edges (never stretched) and resized to 768x1024; `restorePersonFrame` crops the generated result back to the original photo's frame.
@@ -121,7 +106,7 @@ Uploads: JPEG, PNG, WEBP, GIF, AVIF or SVG, max 12 MB.
 npm run lint
 npm test                   # API tests (node:test + supertest)
 npx playwright install chromium   # first time only
-npm run test:e2e           # end-to-end browser flows on isolated ports 5174/5055 with `TRYON_PROVIDER=mock` and AI keys blanked; fails on any console error
+npm run test:e2e           # end-to-end browser flows on isolated ports 5174/5055 with AI keys blanked (the try-on API is stubbed in the browser); fails on any console error
 ```
 
 The E2E suite covers category filtering and search, product → cart → quantity → checkout, wishlist management, upload (file input, drag-and-drop, sample) → try-on → match score → complete look, and both consent paths (YES shows the grid, NO clears history).
@@ -146,7 +131,7 @@ Photos are processed in memory only to generate the try-on and are never stored.
 
 ## Deploying to Vercel
 
-The repo includes a Vercel setup: [`vercel.json`](vercel.json) serves the Vite build and sends every `/api/*` request to [`api/index.js`](api/index.js), which runs the same Express app as a serverless function (60 s limit). In the Vercel project, open **Settings -> Environment Variables**, add `GEMINI_API_KEY` (plus any other keys from `.env.example`), then redeploy. `.env` is not deployed, so without these variables try-on falls back to Hugging Face or the mock. On Vercel each try-on model attempt is capped at 25 s (`TRYON_TIMEOUT_MS`) so the fallback can still respond within the function limit, and photos are downscaled in the browser to stay under Vercel's 4.5 MB request limit.
+The repo includes a Vercel setup: [`vercel.json`](vercel.json) serves the Vite build and sends every `/api/*` request to [`api/index.js`](api/index.js), which runs the same Express app as a serverless function (300 s limit). In the Vercel project, open **Settings -> Environment Variables**, add `GEMINI_API_KEY` (plus any other keys from `.env.example`), then redeploy. `.env` is not deployed, so without `GEMINI_API_KEY` the Try-On page shows the busy message. Photos are downscaled in the browser to stay under Vercel's 4.5 MB request limit.
 
 ## Accounts, admin and checkout
 

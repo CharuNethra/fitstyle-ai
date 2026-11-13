@@ -14,8 +14,7 @@ This guide explains the project in plain language so you can describe it confide
 | **Vite** | A development tool that runs the website on your computer while you build it and packages it for the internet. | It is very fast: changes appear in the browser almost instantly, which speeds up building and testing. |
 | **Node.js** | A way to run JavaScript on a server (a computer in the background), not just in the browser. | We use the same language (JavaScript) for the front end and the back end, so the project is simpler to build and maintain. |
 | **Express** | A lightweight toolkit on top of Node.js for creating a server and its web addresses, such as `/api/try-on`. | It is simple and widely used. We use it to receive photos, call the AI services and send results back to the page. |
-| **Hugging Face IDM-VTON** | A free, open-source AI model, hosted on Hugging Face, that puts a garment onto a photo of a person. | It gives realistic try-on results without paying for a commercial service, which made it ideal for building and testing. |
-| **Google Gemini API** | Google's AI that can look at images and write about them. One version can also create images. | It powers the AI stylist (match score and styling tips), and it is now also the default try-on engine because it is fast and reliable. |
+| **Google Gemini API** | Google's AI that can look at images and write about them. One version can also create images. | It powers both the virtual try-on (its image model dresses the user's photo) and the AI stylist (match score and styling tips), so one service and one key run all the AI. |
 | **Vercel** | A hosting platform that puts the website online and runs the server code automatically. | It deploys a new version every time we push code to GitHub, and it is free for a project of this size. |
 
 > Also used: **Tailwind CSS** (styling and colours), **Lucide** (icons), **Sharp** (image resizing on the server) and **Playwright** (automatic browser tests).
@@ -31,19 +30,19 @@ What happens when a user tries on an outfit:
 3. **Shrink for upload.** The browser shrinks very large photos so they upload quickly.
 4. **Send to the server.** When the user clicks **"Try On"**, the photo and the chosen product go to our Express server.
 5. **Clean the images.** The server tidies both images to a standard size and shape (see Section 5).
-6. **Create the try-on image.** The server sends the image pair to the AI try-on engine, which returns a new picture of the user wearing the outfit.
+6. **Create the try-on image.** The server sends the image pair to Google Gemini's image model, which returns a new picture of the user wearing the outfit.
 7. **Score it.** The finished picture goes to Google Gemini, which returns a **match score** with a 5-point explanation.
 8. **Style it.** Gemini also suggests **3 hairstyles, 3 accessories and 3 pairs of shoes**.
 9. **Show the results.** The page shows the try-on image (with an Original/Compare toggle), the score and the styling ideas.
 10. **Keep shopping.** The user can add the item to the cart or wishlist and go through a pretend checkout.
 
-**Safety net:** if any AI service is busy or unavailable, the app shows a simple preview image or built-in suggestions with a small notice. The page never breaks.
+**Safety net:** if the try-on AI is busy, the server retries once. If it is still busy, the page shows "Our Try-on is busy right now, try again later" with a **Try Again** button, and never a fake or pasted image. If the stylist AI is unavailable, built-in suggestions are shown with a small notice.
 
 **Privacy:** personalised dress recommendations appear only if the user clicks **YES**. Clicking **NO** hides them and clears the saved browsing history.
 
 ---
 
-## 3. Virtual Try-On Engine (Hugging Face)
+## 3. Virtual Try-On Engine (Google Gemini)
 
 In plain English, this is how the try-on works:
 
@@ -54,14 +53,9 @@ In plain English, this is how the try-on works:
 5. **It keeps the rest.** The face, hair, skin tone and background stay as they were.
 6. **One picture comes out.** The server crops it back to the shape of the original photo and sends it to the web page.
 
-**Which models we used:**
+**Which model we use:** Google Gemini's image model, `gemini-3.1-flash-image`, with `gemini-2.5-flash-image` as a backup. The server sends both pictures with written instructions: keep the person's face, skin tone, pose and background exactly the same, and copy the garment's colour, fabric and design faithfully.
 
-- **IDM-VTON** for tops and shirts (upper-body clothing).
-- **OOTDiffusion** for dresses, because it can replace the whole outfit and not just the top.
-
-The server talks to these models on Hugging Face with a small connector library called `@gradio/client`.
-
-**What changed later:** the free Hugging Face service has a small daily usage limit and is sometimes busy. So the app now uses **Google Gemini's image model as the default try-on engine** (about 10 seconds per try-on). Hugging Face remains built in as an alternative and can be switched on with one setting.
+**If it is busy:** if Gemini is overloaded or out of quota, the server tries the backup model, waits two seconds and tries everything once more. If it still fails, the user sees a clear message and a Try Again button instead of a broken image.
 
 ---
 
@@ -101,7 +95,7 @@ AI try-on models are picky: **good input gives good output**. So before anything
 
 ### Why 768x1024 and a 3:4 shape?
 
-- The try-on models were **trained on portrait images of exactly 768 x 1024 pixels** (a 3:4 width-to-height ratio).
+- Virtual try-on models **work best with portrait images of 768 x 1024 pixels** (a 3:4 width-to-height ratio).
 - A photo of a different size or shape gets squashed or stretched to fit, which causes **blurriness, distorted bodies or cut-off heads and feet**.
 - So the server **fits every user photo into a 768x1024 portrait frame without stretching the person**. It adds a little extra edge around the photo instead of squashing it.
 - Once the AI finishes, the server **crops the result back to the original photo's shape**, so the final picture looks natural.
@@ -124,4 +118,4 @@ AI try-on models are picky: **good input gives good output**. So before anything
 
 ## In One Sentence
 
-FitStyle AI is a React and Express clothing shop, hosted on Vercel, where AI (Hugging Face models or Google Gemini) puts outfits onto the user's own photo, and Gemini scores the fit and suggests hairstyles, accessories and shoes. Careful image preparation keeps the results sharp and realistic.
+FitStyle AI is a React and Express clothing shop, hosted on Vercel, where Google Gemini puts outfits onto the user's own photo, and Gemini scores the fit and suggests hairstyles, accessories and shoes. Careful image preparation keeps the results sharp and realistic.

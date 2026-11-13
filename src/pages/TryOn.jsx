@@ -58,7 +58,7 @@ function LookBuilder({ product, queued, layers, busyId, onAdd, onUndo, canUndo, 
   );
 }
 
-const PROVIDER_LABEL = { mock: 'FitStyle preview engine', huggingface: 'Hugging Face', fal: 'Fal.ai · FASHN', fashn: 'FASHN', openai: 'OpenAI', gemini: 'Google Gemini' };
+const PROVIDER_LABEL = { gemini: 'Google Gemini', openai: 'OpenAI', mock: 'FitStyle style rules' };
 
 function OutfitPicker({ selectedId, onSelect }) {
   const { products: PRODUCTS } = useCatalog();
@@ -263,8 +263,8 @@ export default function TryOn() {
             <div role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700" data-testid="try-on-error">
               <p>{error}</p>
               {canRetry && !busy && (
-                <button type="button" onClick={runTryOn} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-red-700 px-4 py-2 text-xs font-semibold text-white hover:bg-red-800" data-testid="retry-try-on">
-                  <RotateCcw size={14} /> Retry Try-On
+                <button type="button" onClick={runTryOn} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-red-700 px-4 py-2 text-xs font-semibold text-white hover:bg-red-800" data-testid="try-again">
+                  <RotateCcw size={14} /> Try Again
                 </button>
               )}
             </div>

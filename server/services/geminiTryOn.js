@@ -1,9 +1,11 @@
 import { bufferToDataUrl } from './imageUtils.js';
 import { prepareGarment, preparePerson, restorePersonFrame } from './preprocess.js';
 
-// Gemini image models (Google AI Studio), tried in order on overload, rate limits or retired models.
+// Gemini image models (Google AI Studio), tried in order on overload, rate limits or retired models;
+// the whole list is retried once after a short pause.
 export const GEMINI_IMAGE_FALLBACK_MODELS = ['gemini-3.1-flash-image', 'gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview'];
 const RETRYABLE = new Set([404, 408, 429, 500, 502, 503, 504]);
+const RETRY_DELAY_MS = 2_000;
 
 const GARMENT_AREA = {
   'one-pieces': 'full outfit (it is a dress/gown, so it replaces both top and bottom)',
@@ -85,6 +87,19 @@ export async function geminiAddItem(photo, item, product, config) {
 
 async function generateWithFallback(parts, person, config) {
   const models = [...new Set([config.geminiImageModel, ...GEMINI_IMAGE_FALLBACK_MODELS].filter(Boolean))];
+  let lastErr;
+  for (let pass = 0; pass < 2; pass += 1) {
+    if (pass) await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+    const result = await tryModels(models, parts, person, config).catch((err) => {
+      lastErr = err;
+      return null;
+    });
+    if (result) return result;
+  }
+  throw lastErr || new Error('Gemini try-on ran out of time');
+}
+
+async function tryModels(models, parts, person, config) {
   let lastErr;
   for (const model of models) {
     const remaining = config.deadline ? config.deadline - Date.now() : Infinity;

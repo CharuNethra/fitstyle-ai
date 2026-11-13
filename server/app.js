@@ -55,7 +55,7 @@ export function createApp(config, store = createStore(config.dataFile)) {
   app.get('/api/delivery/:pincode', (req, res) => res.json(checkPincode(req.params.pincode)));
 
   app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, providers: { tryOn: config.tryOnProvider, vision: config.visionProvider } });
+    res.json({ ok: true, providers: { tryOn: config.geminiKey ? 'gemini' : 'not configured', vision: config.visionProvider } });
   });
 
   app.get('/api/products', (_req, res) => res.json({ products: listProducts(store) }));

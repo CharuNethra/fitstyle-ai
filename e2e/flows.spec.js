@@ -1,11 +1,14 @@
 /* global DataTransfer */
 import { test, expect } from '@playwright/test';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SAMPLE = path.resolve(__dirname, '../public/samples/sample-model.svg');
 const SHOTS = process.env.E2E_SCREENSHOTS;
+// The E2E server has no Gemini key, so the try-on API is stubbed in the browser with a sample result.
+const FAKE_RESULT = `data:image/svg+xml;base64,${fs.readFileSync(SAMPLE).toString('base64')}`;
 
 let consoleErrors;
 
@@ -17,6 +20,9 @@ test.beforeEach(async ({ page, request }) => {
     localStorage.setItem('fitstyle:token', t);
     localStorage.setItem('fitstyle:user', u);
   }, [token, JSON.stringify(user)]);
+  for (const url of ['**/api/try-on', '**/api/try-on/layer']) {
+    await page.route(url, (route) => route.fulfill({ json: { image: FAKE_RESULT, provider: 'gemini', model: 'gemini-3.1-flash-image' } }));
+  }
   consoleErrors = [];
   page.on('console', (msg) => msg.type() === 'error' && consoleErrors.push(msg.text()));
   page.on('pageerror', (err) => consoleErrors.push(err.message));
@@ -241,7 +247,6 @@ test('cross-category pairings and optional Try-On with Current Look', async ({ p
   const first = builder.getByTestId('try-with-look').first();
   await first.click();
   await expect(builder.getByText('Added to look')).toHaveCount(1);
-  await expect(page.getByTestId('layer-warning')).toBeVisible();
   await page.getByTestId('undo-layer').click();
   await expect(builder.getByText('Added to look')).toHaveCount(0);
   await shot(page, '09-look-builder');

@@ -4,7 +4,7 @@ import request from 'supertest';
 import { createApp } from '../app.js';
 import { getConfig } from '../config.js';
 
-const app = createApp(getConfig({ TRYON_PROVIDER: 'mock', DATA_FILE: '' }));
+const app = createApp(getConfig({ DATA_FILE: '' }));
 
 test('signup, login, me and logout', async () => {
   await request(app).post('/api/auth/signup').send({ name: 'Ria', email: 'bad', password: 'secret1' }).expect(400);
@@ -100,9 +100,8 @@ test('cross-category pairings and optional layered try-on', async () => {
   await request(app).post('/api/try-on/layer').send({ productId: 'gold-chain-clutch', image }).expect(401);
   const user = await request(app).post('/api/auth/signup').send({ name: 'L', email: 'layer@example.com', password: 'secret1' }).expect(201);
   const auth = `Bearer ${user.body.token}`;
-  const res = await request(app).post('/api/try-on/layer').set('Authorization', auth).send({ productId: 'gold-chain-clutch', image }).expect(200);
-  assert.match(res.body.image, /^data:image\//);
-  assert.equal(res.body.provider, 'mock');
+  const res = await request(app).post('/api/try-on/layer').set('Authorization', auth).send({ productId: 'gold-chain-clutch', image }).expect(503);
+  assert.equal(res.body.error, 'Our Try-on is busy right now, try again later');
   await request(app).post('/api/try-on/layer').set('Authorization', auth).send({ productId: 'noir-modal-briefs', image }).expect(403);
 });
 
@@ -180,7 +179,7 @@ test('forgot password: generic reply, single-use expiring token, old sessions re
 });
 
 test('reset links are never returned to the browser in production', async () => {
-  const prod = createApp(getConfig({ TRYON_PROVIDER: 'mock', DATA_FILE: '', VERCEL: '1', ADMIN_PASSWORD: 'x' }));
+  const prod = createApp(getConfig({ DATA_FILE: '', VERCEL: '1', ADMIN_PASSWORD: 'x' }));
   await request(prod).post('/api/auth/signup').send({ name: 'P', email: 'p@example.com', password: 'secret1' }).expect(201);
   const res = await request(prod).post('/api/auth/forgot-password').send({ email: 'p@example.com' }).expect(200);
   assert.equal(res.body.previewUrl, undefined);

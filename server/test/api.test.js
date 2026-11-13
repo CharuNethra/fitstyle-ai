@@ -9,24 +9,35 @@ import { getConfig } from '../config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const samplePhoto = fs.readFileSync(path.resolve(__dirname, '../../public/samples/sample-model.svg'));
-const app = createApp(getConfig({ TRYON_PROVIDER: 'mock', DATA_FILE: '' }));
-const { body: signup } = await request(app).post('/api/auth/signup').send({ name: 'Ava', email: 'ava@example.com', password: 'secret1' });
-const AUTH = `Bearer ${signup.token}`;
+// Stub for the Gemini image API so try-on tests run offline: 'ok' returns an image, 'busy' a 429.
+const realFetch = globalThis.fetch;
+const gemini = { mode: 'ok', calls: 0 };
+const sharp = (await import('sharp')).default;
+const fakeImage = (await sharp({ create: { width: 768, height: 1024, channels: 3, background: '#b76e79' } }).jpeg().toBuffer()).toString('base64');
+globalThis.fetch = async (url, opts) => {
+  if (!String(url).includes('generativelanguage.googleapis.com')) return realFetch(url, opts);
+  gemini.calls += 1;
+  if (gemini.mode === 'busy') return new Response('{"error":{"code":429,"message":"quota"}}', { status: 429 });
+  return Response.json({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/jpeg', data: fakeImage } }] } }] });
+};
 
-test('health reports mock providers when no keys are configured', async () => {
+const app = createApp(getConfig({ DATA_FILE: '' }));
+const geminiApp = createApp(getConfig({ DATA_FILE: '', GEMINI_API_KEY: 'test-key' }));
+const signupIn = async (a) => `Bearer ${(await request(a).post('/api/auth/signup').send({ name: 'Ava', email: 'ava@example.com', password: 'secret1' })).body.token}`;
+const AUTH = await signupIn(app);
+const GEMINI_AUTH = await signupIn(geminiApp);
+
+test('health reports try-on as not configured without a Gemini key', async () => {
   const res = await request(app).get('/api/health').expect(200);
-  assert.deepEqual(res.body.providers, { tryOn: 'mock', vision: 'mock' });
+  assert.deepEqual(res.body.providers, { tryOn: 'not configured', vision: 'mock' });
+  assert.equal((await request(geminiApp).get('/api/health')).body.providers.tryOn, 'gemini');
 });
 
-test('config picks Gemini try-on and vision when keyed, Hugging Face otherwise', () => {
-  const c = getConfig({ FAL_KEY: 'x', GEMINI_API_KEY: 'y' });
-  assert.equal(c.tryOnProvider, 'gemini');
+test('config uses Gemini for vision when keyed', () => {
+  const c = getConfig({ GEMINI_API_KEY: 'y' });
   assert.equal(c.geminiImageModel, 'gemini-3.1-flash-image');
-  assert.equal(getConfig({}).tryOnProvider, 'huggingface');
-  assert.deepEqual(c.hfSpaces, ['yisol/IDM-VTON', 'Nymbo/Virtual-Try-On']);
   assert.equal(c.visionProvider, 'gemini');
-  assert.equal(getConfig({ TRYON_PROVIDER: 'fal' }).tryOnProvider, 'fal');
-  assert.equal(getConfig({ GEMINI_API_KEY: 'k', TRYON_PROVIDER: 'huggingface' }).tryOnProvider, 'huggingface');
+  assert.equal(getConfig({}).visionProvider, 'mock');
 });
 
 test('products endpoint lists the catalogue', async () => {
@@ -36,15 +47,16 @@ test('products endpoint lists the catalogue', async () => {
 
 let tryOnImage;
 
-test('try-on composites the garment onto an uploaded photo', async () => {
-  const res = await request(app)
-    .post('/api/try-on').set('Authorization', AUTH)
-    .field('productId', 'emerald-wrap-midi')
+test('try-on returns the Gemini image for an uploaded photo', async () => {
+  gemini.mode = 'ok';
+  const res = await request(geminiApp)
+    .post('/api/try-on').set('Authorization', GEMINI_AUTH)
+    .field('productId', 'aurelia-satin-slip')
     .attach('photo', samplePhoto, { filename: 'me.svg', contentType: 'image/svg+xml' })
     .expect(200);
-  assert.equal(res.body.provider, 'mock');
+  assert.equal(res.body.provider, 'gemini');
+  assert.equal(res.body.model, 'gemini-3.1-flash-image');
   assert.match(res.body.image, /^data:image\/jpeg;base64,/);
-  assert.equal(res.body.detected, true);
   tryOnImage = res.body.image;
 });
 
@@ -107,23 +119,33 @@ test('unknown api routes 404 as JSON', async () => {
   assert.equal(res.body.error, 'Not found');
 });
 
-test('when every AI provider fails, try-on returns a retryable 503 instead of a fake composite', async () => {
-  const offline = createApp(getConfig({ TRYON_PROVIDER: 'huggingface', HF_TRYON_SPACES: ' ', HF_DRESS_SPACE: '', DATA_FILE: '' }));
-  const user = await request(offline).post('/api/auth/signup').send({ name: 'O', email: 'o@example.com', password: 'secret1' });
-  const res = await request(offline)
-    .post('/api/try-on').set('Authorization', `Bearer ${user.body.token}`)
+test('when Gemini is busy after a retry, try-on returns the text-only busy message and no image', async () => {
+  gemini.mode = 'busy';
+  gemini.calls = 0;
+  const res = await request(geminiApp)
+    .post('/api/try-on').set('Authorization', GEMINI_AUTH)
     .field('productId', 'aurelia-satin-slip')
     .attach('photo', samplePhoto, { filename: 'me.svg', contentType: 'image/svg+xml' })
     .expect(503);
-  assert.equal(res.body.retryable, true);
-  assert.match(res.body.error, /try again/);
-  assert.equal(res.body.image, undefined);
+  assert.deepEqual(res.body, { error: 'Our Try-on is busy right now, try again later', retryable: true });
+  assert.equal(gemini.calls, 6, 'three Gemini image models, each tried twice');
+  gemini.mode = 'ok';
 });
 
-test('provider chain falls back to Hugging Face and never to the mock', async () => {
-  const { providerChain } = await import('../services/tryOn.js');
-  assert.deepEqual(providerChain(getConfig({ GEMINI_API_KEY: 'k' })), ['gemini', 'huggingface']);
-  assert.deepEqual(providerChain(getConfig({})), ['huggingface']);
-  assert.deepEqual(providerChain(getConfig({ TRYON_PROVIDER: 'huggingface', GEMINI_API_KEY: 'k' })), ['huggingface', 'gemini']);
-  assert.deepEqual(providerChain(getConfig({ TRYON_PROVIDER: 'mock' })), ['mock']);
+test('without a Gemini key, try-on and layering return the busy message', async () => {
+  const res = await request(app)
+    .post('/api/try-on').set('Authorization', AUTH)
+    .field('productId', 'aurelia-satin-slip')
+    .attach('photo', samplePhoto, { filename: 'me.svg', contentType: 'image/svg+xml' })
+    .expect(503);
+  assert.equal(res.body.error, 'Our Try-on is busy right now, try again later');
+  assert.equal(res.body.image, undefined);
+  const layer = await request(app).post('/api/try-on/layer').set('Authorization', AUTH).send({ productId: 'gold-chain-clutch', image: tryOnImage }).expect(503);
+  assert.equal(layer.body.image, undefined);
+});
+
+test('layering adds footwear/accessories through Gemini', async () => {
+  const res = await request(geminiApp).post('/api/try-on/layer').set('Authorization', GEMINI_AUTH).send({ productId: 'gold-chain-clutch', image: tryOnImage }).expect(200);
+  assert.equal(res.body.provider, 'gemini');
+  assert.match(res.body.image, /^data:image\/jpeg;base64,/);
 });
