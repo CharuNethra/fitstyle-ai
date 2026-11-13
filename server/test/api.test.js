@@ -18,6 +18,8 @@ globalThis.fetch = async (url, opts) => {
   if (!String(url).includes('generativelanguage.googleapis.com')) return realFetch(url, opts);
   gemini.calls += 1;
   if (gemini.mode === 'busy') return new Response('{"error":{"code":429,"message":"quota"}}', { status: 429 });
+  if (gemini.mode === 'billing') return new Response('{"error":{"code":403,"message":"Your billing account has an outstanding balance."}}', { status: 403 });
+  if (gemini.mode === 'free-tier') return new Response('{"error":{"code":429,"message":"Quota exceeded for metric: generate_content_free_tier_requests, limit: 0"}}', { status: 429 });
   return Response.json({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/jpeg', data: fakeImage } }] } }] });
 };
 
@@ -129,6 +131,21 @@ test('when Gemini is busy after a retry, try-on returns the text-only busy messa
     .expect(503);
   assert.deepEqual(res.body, { error: 'Our Try-on is busy right now, try again later', retryable: true });
   assert.equal(gemini.calls, 6, 'three Gemini image models, each tried twice');
+  gemini.mode = 'ok';
+});
+
+test('billing and free-tier image errors fail fast with the busy message', async () => {
+  for (const mode of ['billing', 'free-tier']) {
+    gemini.mode = mode;
+    gemini.calls = 0;
+    const res = await request(geminiApp)
+      .post('/api/try-on').set('Authorization', GEMINI_AUTH)
+      .field('productId', 'aurelia-satin-slip')
+      .attach('photo', samplePhoto, { filename: 'me.svg', contentType: 'image/svg+xml' })
+      .expect(503);
+    assert.deepEqual(res.body, { error: 'Our Try-on is busy right now, try again later', retryable: true });
+    assert.equal(gemini.calls, 1, `${mode}: no pointless retries`);
+  }
   gemini.mode = 'ok';
 });
 

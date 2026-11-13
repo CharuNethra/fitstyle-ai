@@ -146,7 +146,7 @@ export function createApp(config, store = createStore(config.dataFile)) {
       status = 413;
       message = 'Request body too large';
     }
-    if (status >= 500) console.error(err);
+    if (status >= 500 && !err.retryable) console.error(err);
     if (err.retryable && err instanceof HttpError) return res.status(status).json({ error: message, retryable: true });
     res.status(status).json({ error: status >= 500 ? 'Something went wrong. Please try again.' : message });
   });

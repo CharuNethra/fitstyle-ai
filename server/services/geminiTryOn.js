@@ -36,9 +36,12 @@ async function geminiImageRequest(model, parts, config) {
     signal: AbortSignal.timeout(config.tryOnTimeoutMs ?? 120_000),
   });
   if (!res.ok) {
-    const detail = (await res.text()).replace(/\s+/g, ' ').slice(0, 200);
-    throw Object.assign(new Error(`Gemini ${model} responded ${res.status}: ${detail}`), {
-      retryable: RETRYABLE.has(res.status),
+    const body = (await res.text()).replace(/\s+/g, ' ');
+    // Billing, permission and free-tier errors (e.g. a 0 image quota) will not clear on a retry.
+    const unavailable = [400, 401, 403].includes(res.status) || (res.status === 429 && /limit: 0\b|free_tier|billing/i.test(body));
+    throw Object.assign(new Error(`Gemini ${model} responded ${res.status}: ${body.slice(0, 200)}`), {
+      retryable: RETRYABLE.has(res.status) && !unavailable,
+      unavailable,
       quota: res.status === 429,
     });
   }
@@ -95,6 +98,7 @@ async function generateWithFallback(parts, person, config) {
       return null;
     });
     if (result) return result;
+    if (lastErr && !lastErr.retryable && lastErr.name !== 'TimeoutError' && lastErr.name !== 'AbortError') break;
   }
   throw lastErr || new Error('Gemini try-on ran out of time');
 }

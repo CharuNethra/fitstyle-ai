@@ -58,6 +58,9 @@ function LookBuilder({ product, queued, layers, busyId, onAdd, onUndo, canUndo, 
   );
 }
 
+const TRYON_BUSY_MESSAGE = 'Our Try-on is busy right now, try again later';
+const INPUT_ERRORS = new Set([400, 401, 404, 413, 415, 422]);
+
 const PROVIDER_LABEL = { gemini: 'Google Gemini', openai: 'OpenAI', mock: 'FitStyle style rules' };
 
 function OutfitPicker({ selectedId, onSelect }) {
@@ -123,7 +126,7 @@ export default function TryOn() {
 
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState(null);
-  const [canRetry, setCanRetry] = useState(false);
+  const [retry, setRetry] = useState(null);
   const [stage, setStage] = useState(null);
   const [result, setResult] = useState(null);
   const [match, setMatch] = useState(null);
@@ -134,17 +137,24 @@ export default function TryOn() {
   const [layering, setLayering] = useState(null);
   const queued = (params.get('add') || '').split(',').map((id) => getProduct(id)).filter(Boolean);
 
+  // Image generation failures show one fixed message with Try Again; only bad input (e.g. an unreadable photo) shows its own reason.
+  const showTryOnFailure = (err, again) => {
+    const badInput = INPUT_ERRORS.has(err.status);
+    setError(badInput ? err.message : TRYON_BUSY_MESSAGE);
+    setRetry(badInput ? null : () => again);
+  };
+
   const addToLook = async (item) => {
     setLayering(item.id);
     setError(null);
-    setCanRetry(false);
+    setRetry(null);
     try {
       const out = await api.layerTryOn(item.id, result.image);
       setHistory((h) => [...h, { image: result.image, layers }]);
       setResult((r) => ({ ...r, image: out.image, layerWarning: out.warning }));
       setLayers((l) => [...l, item.id]);
     } catch (e) {
-      setError(e.message);
+      showTryOnFailure(e, () => addToLook(item));
     } finally {
       setLayering(null);
     }
@@ -184,8 +194,9 @@ export default function TryOn() {
   const runTryOn = async () => {
     if (!photo) return;
     const id = ++runId.current;
+    let step = 'tryon';
     setError(null);
-    setCanRetry(false);
+    setRetry(null);
     setResult(null);
     setLayers([]);
     setHistory([]);
@@ -198,6 +209,7 @@ export default function TryOn() {
       if (id !== runId.current) return;
       setResult(tryOn);
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      step = 'match';
       setStage('match');
       const m = await api.calculateMatch(product.id, tryOn.image);
       if (id !== runId.current) return;
@@ -209,8 +221,8 @@ export default function TryOn() {
       setStage('done');
     } catch (err) {
       if (id !== runId.current) return;
-      setError(err.message);
-      setCanRetry(err.retryable || err.status >= 500 || !err.status);
+      if (step === 'tryon') showTryOnFailure(err, runTryOn);
+      else setError(err.message);
       setStage(null);
     }
   };
@@ -249,7 +261,7 @@ export default function TryOn() {
                 <ProductImage product={product} className="mx-auto aspect-[3/4] max-w-xs rounded-2xl" />
               </div>
             ) : (
-              <div className="mt-4"><PhotoDropzone file={photo} onChange={changePhoto} onError={(m) => { setError(m); setCanRetry(false); }} /></div>
+              <div className="mt-4"><PhotoDropzone file={photo} onChange={changePhoto} onError={(m) => { setError(m); setRetry(null); }} /></div>
             )}
             <p className="mt-3 flex items-start gap-2 text-xs text-ink/50"><Info size={14} className="mt-0.5 shrink-0" />Best results: stand facing the camera, arms relaxed, plain background, good lighting. Photos are processed only to generate your try-on.</p>
           </section>
@@ -262,8 +274,8 @@ export default function TryOn() {
           {error && (
             <div role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700" data-testid="try-on-error">
               <p>{error}</p>
-              {canRetry && !busy && (
-                <button type="button" onClick={runTryOn} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-red-700 px-4 py-2 text-xs font-semibold text-white hover:bg-red-800" data-testid="try-again">
+              {retry && !busy && !layering && (
+                <button type="button" onClick={retry} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-red-700 px-4 py-2 text-xs font-semibold text-white hover:bg-red-800" data-testid="try-again">
                   <RotateCcw size={14} /> Try Again
                 </button>
               )}
