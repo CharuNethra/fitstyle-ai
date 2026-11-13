@@ -16,6 +16,7 @@ import { normalizePhoto, dataUrlToBuffer } from './services/imageUtils.js';
 import { runLayerTryOn, runTryOn } from './services/tryOn.js';
 import { calculateMatch, stylingSuggestions } from './services/stylist.js';
 import { recommend } from './services/recommend.js';
+import { checkGemini } from './services/vision.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MAX_UPLOAD = 12 * 1024 * 1024;
@@ -57,6 +58,8 @@ export function createApp(config, store = createStore(config.dataFile)) {
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, providers: { tryOn: config.geminiKey ? 'gemini' : 'not configured', vision: config.visionProvider } });
   });
+
+  app.get('/api/health/ai', async (_req, res) => res.json({ gemini: await checkGemini(config) }));
 
   app.get('/api/products', (_req, res) => res.json({ products: listProducts(store) }));
 

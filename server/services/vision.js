@@ -114,4 +114,22 @@ export async function visionJson(prompt, image, config) {
   throw new Error('No vision provider configured');
 }
 
+/** Support check: one tiny Gemini text call; returns Google's status and message, never the key. */
+export async function checkGemini(config) {
+  if (!config.geminiKey) return { ok: false, reason: 'GEMINI_API_KEY is not set' };
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.geminiKey },
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Reply with OK' }] }] }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (res.ok) return { ok: true, model: config.geminiModel };
+    const body = await res.json().catch(() => ({}));
+    return { ok: false, model: config.geminiModel, status: res.status, reason: String(body.error?.message || res.statusText).slice(0, 160) };
+  } catch (err) {
+    return { ok: false, model: config.geminiModel, reason: err.message };
+  }
+}
+
 export { toInlineImage };

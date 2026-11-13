@@ -134,6 +134,17 @@ test('when Gemini is busy after a retry, try-on returns the text-only busy messa
   gemini.mode = 'ok';
 });
 
+test('health/ai reports whether the Gemini key works, without exposing it', async () => {
+  assert.deepEqual((await request(app).get('/api/health/ai')).body, { gemini: { ok: false, reason: 'GEMINI_API_KEY is not set' } });
+  gemini.mode = 'billing';
+  const res = await request(geminiApp).get('/api/health/ai').expect(200);
+  assert.equal(res.body.gemini.status, 403);
+  assert.match(res.body.gemini.reason, /billing/);
+  assert.doesNotMatch(JSON.stringify(res.body), /test-key/);
+  gemini.mode = 'ok';
+  assert.equal((await request(geminiApp).get('/api/health/ai')).body.gemini.ok, true);
+});
+
 test('billing and free-tier image errors fail fast with the busy message', async () => {
   for (const mode of ['billing', 'free-tier']) {
     gemini.mode = mode;
