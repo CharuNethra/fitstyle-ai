@@ -100,6 +100,6 @@ export const api = {
     setSaleTag: (id, label) => admin.put(`/api/admin/offers/sale-tags/${encodeURIComponent(id)}`, { label }),
   },
   calculateMatch: (productId, image) => postJson('/api/calculate-match', { productId, image }),
-  stylingSuggestions: (productId, image, match) => postJson('/api/styling-suggestions', { productId, image, match }),
+  stylingSuggestions: (productId, image, match, rules = false) => postJson('/api/styling-suggestions', { productId, image, match, rules }),
   recommendations: (history) => postJson('/api/recommendations', { ...history, consent: true }),
 };

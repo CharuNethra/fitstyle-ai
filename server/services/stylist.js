@@ -162,7 +162,17 @@ const FOOTWEAR = {
   ],
 };
 
-/** Rule-based complete-look stylist used when no LLM key is configured. */
+const OCCASION_NOTES = {
+  Bridal: 'Bridal: build the look around one statement jewellery set and keep the makeup luminous rather than heavy.',
+  Groom: 'Groom: match the safa or pocket square to the embroidery thread, and keep footwear in a closed, polished style.',
+  Ethnic: 'Ethnic: drape the dupatta or stole to show the border work, and pick footwear you can stand in for long celebrations.',
+  Party: 'Party: one bold accent (a metallic clutch or statement earrings) is enough; let the silhouette do the talking.',
+  Office: 'Office: keep accessories minimal and structured, with a closed-toe shoe and a tote that fits a laptop.',
+  Casual: 'Casual: relaxed texture and comfortable flats or sneakers keep it easy for all-day wear.',
+  Beachy: 'Beachy: lightweight sandals, a woven bag and sunglasses suit sun and sand; skip delicate metals near salt water.',
+};
+
+/** Rule-based complete-look stylist used when no LLM key is configured, or when the try-on image cannot be generated. */
 export function mockStyling(product, match) {
   const style = HAIR[product.style] ? product.style : 'casual';
   const metal = product.palette === 'cool' ? 'Silver' : product.palette === 'warm' ? 'Gold' : (match?.skinTone || '').includes('cool') ? 'Silver' : 'Gold';
@@ -177,6 +187,11 @@ export function mockStyling(product, match) {
     accessories,
     footwear: FOOTWEAR[style],
     stylistNote: `For a cohesive ${style} look, let the ${product.colorName.toLowerCase()} ${product.type} be the hero and keep accents in ${metal.toLowerCase()} and soft neutrals.`,
+    notes: [
+      `Let the ${product.colorName.toLowerCase()} ${product.type} be the hero; keep accents in ${metal.toLowerCase()} and soft neutrals.`,
+      OCCASION_NOTES[product.subCategory],
+      product.fabric && `Fabric: ${product.fabric}. Best in ${(product.seasons || []).join(', ') || 'any season'}.`,
+    ].filter(Boolean),
   };
 }
 

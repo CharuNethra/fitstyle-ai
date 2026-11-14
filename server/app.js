@@ -14,7 +14,7 @@ import { checkPincode } from '../shared/checkout.js';
 import { INTIMATES_MESSAGE, isIntimate } from '../shared/taxonomy.js';
 import { normalizePhoto, dataUrlToBuffer } from './services/imageUtils.js';
 import { runLayerTryOn, runTryOn } from './services/tryOn.js';
-import { calculateMatch, stylingSuggestions } from './services/stylist.js';
+import { calculateMatch, mockStyling, stylingSuggestions } from './services/stylist.js';
 import { recommend } from './services/recommend.js';
 import { checkGemini } from './services/vision.js';
 
@@ -117,6 +117,8 @@ export function createApp(config, store = createStore(config.dataFile)) {
 
   app.post('/api/styling-suggestions', async (req, res) => {
     const product = requireProduct(req.body?.productId);
+    // rules: true asks for the deterministic stylist, e.g. to fill the page when the try-on image cannot be generated.
+    if (req.body?.rules === true) return res.json({ ...mockStyling(product, req.body?.match), provider: 'mock' });
     const image = req.body?.image ? requireImage(req.body.image) : null;
     res.json(await stylingSuggestions(product, image, config, req.body?.match));
   });

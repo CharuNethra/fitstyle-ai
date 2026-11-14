@@ -103,6 +103,15 @@ test('styling-suggestions returns hairstyles, accessories and footwear', async (
   }
 });
 
+test('styling-suggestions with rules: true uses the rule engine without calling Gemini', async () => {
+  gemini.calls = 0;
+  const res = await request(geminiApp).post('/api/styling-suggestions').send({ productId: 'pastel-bridal-lehenga', rules: true }).expect(200);
+  assert.equal(res.body.provider, 'mock');
+  for (const key of ['hairstyles', 'accessories', 'footwear']) assert.equal(res.body[key].length, 3);
+  assert.ok(res.body.notes.some((n) => n.startsWith('Bridal:')));
+  assert.equal(gemini.calls, 0);
+});
+
 test('recommendations require consent and reflect history', async () => {
   await request(app).post('/api/recommendations').send({ wishlist: ['noir-column-gown'] }).expect(403);
   const res = await request(app)

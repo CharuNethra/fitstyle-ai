@@ -94,6 +94,49 @@ function OutfitPicker({ selectedId, onSelect }) {
   );
 }
 
+function FallbackLook({ product, look }) {
+  const { products } = useCatalog();
+  const shop = Object.fromEntries(pairingsFor(product, products, 2).map((g) => [g.category, g.items]));
+  const groups = [
+    { key: 'hairstyles', title: 'Hairstyle looks', icon: Scissors, items: look.hairstyles },
+    { key: 'footwear', title: 'Matching footwear', icon: Footprints, items: look.footwear, shop: shop.Footwear },
+    { key: 'accessories', title: 'Matching accessories', icon: Gem, items: look.accessories, shop: shop.Accessories },
+  ];
+  return (
+    <div className="flex flex-1 flex-col" data-testid="fallback-look">
+      <p className="eyebrow">Style suggestions</p>
+      <h3 className="mt-1 text-2xl font-semibold">How to style the {product.name}</h3>
+      <p className="mt-1 text-sm text-ink/60">Picked by our style rules for this {(product.subCategory || product.style).toLowerCase()} look.</p>
+      <div className="mt-5 grid gap-5 sm:grid-cols-2">
+        {groups.map(({ key, title, icon: Icon, items, shop: picks }) => (
+          <div key={key} data-testid={`fallback-${key}`}>
+            <h4 className="flex items-center gap-2 text-sm font-semibold"><Icon size={16} className="text-gold-dark" />{title}</h4>
+            <ul className="mt-2 space-y-2">
+              {items.map((it) => (
+                <li key={it.name} className="text-sm">
+                  <span className="font-medium">{it.name}</span>
+                  <span className="block text-ink/60">{it.description}</span>
+                </li>
+              ))}
+            </ul>
+            {picks?.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {picks.map(({ product: p }) => <Link key={p.id} to={`/product/${p.id}`} className="chip hover:bg-sand">{p.name}</Link>)}
+              </div>
+            )}
+          </div>
+        ))}
+        <div data-testid="fallback-notes">
+          <h4 className="flex items-center gap-2 text-sm font-semibold"><Info size={16} className="text-gold-dark" />Style &amp; outfit notes</h4>
+          <ul className="mt-2 list-disc space-y-1.5 pl-4 text-sm text-ink/70">
+            {look.notes.map((n) => <li key={n}>{n}</li>)}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SuggestionColumn({ icon: Icon, title, items, testId }) {
   return (
     <div className="card p-6" data-testid={testId}>
@@ -127,6 +170,7 @@ export default function TryOn() {
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState(null);
   const [retry, setRetry] = useState(null);
+  const [fallbackLook, setFallbackLook] = useState(null);
   const [stage, setStage] = useState(null);
   const [result, setResult] = useState(null);
   const [match, setMatch] = useState(null);
@@ -142,6 +186,7 @@ export default function TryOn() {
     const badInput = INPUT_ERRORS.has(err.status);
     setError(badInput ? err.message : TRYON_BUSY_MESSAGE);
     setRetry(badInput ? null : () => again);
+    return !badInput;
   };
 
   const addToLook = async (item) => {
@@ -175,6 +220,7 @@ export default function TryOn() {
     runId.current++;
     setStage(null);
     setResult(null);
+    setFallbackLook(null);
     setLayers([]);
     setHistory([]);
     setMatch(null);
@@ -198,11 +244,14 @@ export default function TryOn() {
     setError(null);
     setRetry(null);
     setResult(null);
+    setFallbackLook(null);
     setLayers([]);
     setHistory([]);
     setMatch(null);
     setStyling(null);
     setView('result');
+    // Rule-based styling is requested alongside the try-on so the page stays useful if the image cannot be generated.
+    const rulesLook = api.stylingSuggestions(product.id, null, null, true).catch(() => null);
     try {
       setStage('tryon');
       const tryOn = await api.tryOn(product.id, photo);
@@ -221,9 +270,12 @@ export default function TryOn() {
       setStage('done');
     } catch (err) {
       if (id !== runId.current) return;
-      if (step === 'tryon') showTryOnFailure(err, runTryOn);
-      else setError(err.message);
       setStage(null);
+      if (step !== 'tryon') return setError(err.message);
+      if (showTryOnFailure(err, runTryOn)) {
+        const look = await rulesLook;
+        if (id === runId.current) setFallbackLook(look);
+      }
     }
   };
 
@@ -284,7 +336,9 @@ export default function TryOn() {
         </div>
 
         <section ref={resultRef} className="card flex min-h-[32rem] flex-col p-6 scroll-mt-24" aria-live="polite">
-          {!stage && !result && (
+          {!stage && !result && fallbackLook && <FallbackLook product={product} look={fallbackLook} />}
+
+          {!stage && !result && !fallbackLook && (
             <div className="flex flex-1 flex-col items-center justify-center text-center">
               <span className="grid h-16 w-16 place-items-center rounded-3xl bg-sand text-gold-dark"><Sparkles size={28} /></span>
               <h3 className="mt-5 text-2xl font-semibold">Your look will appear here</h3>

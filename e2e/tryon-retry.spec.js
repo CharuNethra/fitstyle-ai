@@ -25,6 +25,11 @@ test('when Gemini is unavailable the page shows the busy message and Try Again, 
   await page.getByTestId('try-on-button').click();
   await expect(page.getByTestId('try-on-error')).toContainText('Our Try-on is busy right now, try again later');
   await expect(page.getByTestId('try-again')).toHaveText('Try Again');
+  const look = page.getByTestId('fallback-look');
+  await expect(look).toBeVisible();
+  for (const group of ['hairstyles', 'footwear', 'accessories', 'notes']) {
+    await expect(look.getByTestId(`fallback-${group}`).locator('li').first()).toBeVisible();
+  }
   await expect(page.getByTestId('try-on-result')).toHaveCount(0);
   await page.getByTestId('try-again').click();
   await expect(page.getByTestId('try-on-result')).toBeVisible();
