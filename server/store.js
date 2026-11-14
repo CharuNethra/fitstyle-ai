@@ -11,10 +11,42 @@ const EMPTY = () => ({
   resets: {},
 });
 
-/** Tiny JSON-file database for the demo (users, sessions, catalogue edits, offers, orders). */
-export function createStore(file) {
+const parse = (raw) => {
+  try {
+    return { ...EMPTY(), ...(raw ? JSON.parse(raw) : {}) };
+  } catch {
+    return EMPTY();
+  }
+};
+
+/**
+ * Upstash Redis REST client (what Vercel's Upstash/KV integration provides). The whole demo
+ * database is one JSON document under `key`, so every serverless instance sees the same users and sessions.
+ */
+export function upstashRedis(url, token, key = 'fitstyle:db') {
+  const call = async (cmd) => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(cmd),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body.error) throw new Error(`Redis ${cmd[0]} failed: ${body.error || res.status}`);
+    return body.result;
+  };
+  return { get: () => call(['GET', key]), set: (value) => call(['SET', key, value]) };
+}
+
+/**
+ * Demo database (users, sessions, catalogue edits, offers, orders).
+ * With `remote` (Redis) it is reloaded before each API request and changes are written back before the response;
+ * otherwise it is a JSON file (`file`), or memory only when `file` is empty.
+ */
+export function createStore(file, remote = null) {
   let data = EMPTY();
-  if (file && fs.existsSync(file)) {
+  let pending = [];
+  if (!remote && file && fs.existsSync(file)) {
     try {
       data = { ...EMPTY(), ...JSON.parse(fs.readFileSync(file, 'utf8')) };
     } catch {
@@ -22,7 +54,7 @@ export function createStore(file) {
     }
   }
   const save = () => {
-    if (!file) return;
+    if (!file || remote) return;
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify(data, null, 2));
   };
@@ -30,10 +62,25 @@ export function createStore(file) {
     get data() {
       return data;
     },
+    kind: remote ? 'redis' : file ? 'file' : 'memory',
     update(fn) {
       const out = fn(data);
-      save();
+      if (remote) pending.push(fn);
+      else save();
       return out;
+    },
+    async load() {
+      if (remote) data = parse(await remote.get());
+    },
+    /** Re-applies this request's changes to the latest copy, so writes from other instances are kept. */
+    async flush() {
+      if (!remote || !pending.length) return;
+      const changes = pending;
+      pending = [];
+      const fresh = parse(await remote.get());
+      for (const fn of changes) fn(fresh);
+      data = fresh;
+      await remote.set(JSON.stringify(fresh));
     },
   };
 }

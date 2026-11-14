@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HttpError } from './http.js';
-import { createStore } from './store.js';
+import { createStore, upstashRedis } from './store.js';
 import { listProducts, findProduct } from './catalog.js';
 import { authenticate, authRoutes, requireUser } from './routes/auth.js';
 import { adminRoutes } from './routes/admin.js';
@@ -31,7 +31,13 @@ const requireImage = (image) => {
   return image;
 };
 
-export function createApp(config, store = createStore(config.dataFile)) {
+const defaultStore = (config) => {
+  if (config.redisUrl && config.redisToken) return createStore(null, upstashRedis(config.redisUrl, config.redisToken));
+  if (config.onVercel) console.warn('[store] No Redis configured: accounts and sessions live in /tmp and are lost on cold starts.');
+  return createStore(config.dataFile);
+};
+
+export function createApp(config, store = defaultStore(config)) {
   const app = express();
   const requireProduct = (id) => {
     const product = findProduct(store, id);
@@ -49,6 +55,24 @@ export function createApp(config, store = createStore(config.dataFile)) {
 
   app.use(cors());
   app.use(express.json({ limit: '20mb' }));
+  // Shared storage: read the latest data before each request and save changes before replying.
+  app.use('/api', async (_req, res, next) => {
+    try {
+      await store.load();
+    } catch (err) {
+      return next(err);
+    }
+    const json = res.json.bind(res);
+    res.json = (body) => {
+      store.flush().then(() => json(body), (err) => {
+        console.error('[store] save failed:', err.message);
+        res.status(500);
+        json({ error: 'Something went wrong. Please try again.' });
+      });
+      return res;
+    };
+    next();
+  });
   app.use('/api', authenticate(store, config));
   app.use('/api', authRoutes(store, config));
   app.use('/api', adminRoutes(store));
@@ -56,7 +80,7 @@ export function createApp(config, store = createStore(config.dataFile)) {
   app.get('/api/delivery/:pincode', (req, res) => res.json(checkPincode(req.params.pincode)));
 
   app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, providers: { tryOn: config.geminiKey ? 'gemini' : 'not configured', vision: config.visionProvider } });
+    res.json({ ok: true, storage: store.kind, providers: { tryOn: config.geminiKey ? 'gemini' : 'not configured', vision: config.visionProvider } });
   });
 
   app.get('/api/health/ai', async (_req, res) => res.json({ gemini: await checkGemini(config) }));

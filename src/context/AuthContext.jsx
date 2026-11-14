@@ -40,14 +40,15 @@ export function AuthProvider({ children }) {
     try {
       const { user: u } = await api.me();
       saveUser(u);
-    } catch {
-      clear();
+    } catch (err) {
+      if (err.status === 401) clear();
     }
   }, [saveUser, clear]);
 
   useEffect(() => {
     if (!localStorage.getItem(TOKEN_KEY)) return;
-    api.me().then(({ user: u }) => saveUser(u)).catch(clear);
+    // Only a rejected token signs the user out; a network or server hiccup keeps them logged in.
+    api.me().then(({ user: u }) => saveUser(u)).catch((err) => err.status === 401 && clear());
   }, [saveUser, clear]);
 
   const finish = useCallback((u, token) => {

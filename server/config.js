@@ -4,6 +4,10 @@ export function getConfig(env = process.env) {
     port: Number(env.PORT) || 5001,
     // Demo JSON database. Vercel only allows writes to /tmp (reset on cold starts).
     dataFile: env.DATA_FILE ?? (env.VERCEL ? '/tmp/fitstyle-data/db.json' : 'data/db.json'),
+    // Persistent storage for accounts and sessions (Vercel → Storage → Upstash for Redis sets these).
+    redisUrl: env.KV_REST_API_URL || env.UPSTASH_REDIS_REST_URL,
+    redisToken: env.KV_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN,
+    onVercel: !!env.VERCEL,
     adminEmail: (env.ADMIN_EMAIL || 'admin@fitstyle.ai').toLowerCase(),
     // Demo admin password only outside production; on Vercel/production admin login is off until ADMIN_PASSWORD is set.
     adminPassword: env.ADMIN_PASSWORD || (env.NODE_ENV === 'production' || env.VERCEL ? null : 'admin123'),

@@ -152,3 +152,32 @@ test('forgot password: request link, reset, then log in with the new password', 
   await page.getByTestId('auth-submit').click();
   await expect(page.getByTestId('user-name')).toHaveText('Reset Me');
 });
+
+test('sign up, stay logged in across reloads and server hiccups, then log in again', async ({ page }) => {
+  const email = `persist-${Date.now()}@example.com`;
+  await page.goto('/');
+  await page.getByTestId('auth-tab-signup').click();
+  await page.getByTestId('auth-name').fill('Persist Me');
+  await page.getByTestId('auth-email').fill(email);
+  await page.getByTestId('auth-password').fill('secret1');
+  await page.getByTestId('auth-submit').click();
+  await expect(page.getByTestId('user-name')).toHaveText('Persist Me');
+
+  await page.goto('/try-on');
+  await expect(page.getByTestId('user-name')).toHaveText('Persist Me');
+
+  // A failing /auth/me (network or server error) must not sign the user out; only a rejected token does.
+  await page.route('**/api/auth/me', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"busy"}' }));
+  await page.reload();
+  await expect(page.getByTestId('user-name')).toHaveText('Persist Me');
+  await page.unroute('**/api/auth/me');
+  consoleErrors.length = 0;
+
+  await page.getByTestId('logout').click();
+  await expect(page.getByTestId('login-button')).toBeVisible();
+  await page.getByTestId('login-button').click();
+  await page.getByTestId('auth-email').fill(email);
+  await page.getByTestId('auth-password').fill('secret1');
+  await page.getByTestId('auth-submit').click();
+  await expect(page.getByTestId('user-name')).toHaveText('Persist Me');
+});
